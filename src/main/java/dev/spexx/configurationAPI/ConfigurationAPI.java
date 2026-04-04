@@ -1,6 +1,7 @@
 package dev.spexx.configurationAPI;
 
 import dev.spexx.configurationAPI.config.YamlConfig;
+import dev.spexx.configurationAPI.difference.ConfigLineDiff;
 import dev.spexx.configurationAPI.events.ConfigReloadedEvent;
 import dev.spexx.configurationAPI.manager.ConfigManager;
 import org.bukkit.event.EventHandler;
@@ -60,6 +61,26 @@ public final class ConfigurationAPI extends JavaPlugin implements Listener {
      */
     @EventHandler
     public void onReload(@NotNull ConfigReloadedEvent event) {
+
+        for (ConfigLineDiff diff : event.getDiffs()) {
+
+            int delta = diff.getCharDelta();
+            String sign = delta > 0 ? "+" : "";
+
+            String type =
+                    diff.getOldLine().isEmpty() ? "ADDED" :
+                            diff.getNewLine().isEmpty() ? "REMOVED" :
+                                    diff.isOnlyWhitespaceChange() ? "WHITESPACE" :
+                                            "MODIFIED";
+
+            getLogger().info(() ->
+                    "[ConfigWatcher] file=" + event.getConfig().file().getName()
+                            + " line=" + diff.getLineNumber()
+                            + " type=" + type
+                            + " delta=" + sign + delta
+            );
+        }
+
         getLogger().info("Config reloaded: " +
                 event.getConfig().file().getName());
 

@@ -72,6 +72,48 @@ public final class ConfigLineDiff {
     }
 
     /**
+     * Determines whether the difference between the old and new line
+     * consists solely of whitespace changes.
+     *
+     * <p>This method ignores all whitespace characters (spaces, tabs,
+     * and other Unicode whitespace) and compares the normalized content
+     * of both lines.</p>
+     *
+     * <p>Examples:</p>
+     * <ul>
+     *     <li>{@code "value: 1"} vs {@code "value: 1   "} → {@code true}</li>
+     *     <li>{@code "value:    1"} vs {@code "value: 1"} → {@code true}</li>
+     *     <li>{@code "value: 1"} vs {@code "value: 2"} → {@code false}</li>
+     * </ul>
+     *
+     * @return {@code true} if only whitespace differs, {@code false} otherwise
+     *
+     * @apiNote
+     * This method performs a lightweight normalization by removing all
+     * whitespace characters before comparison.
+     *
+     * @implSpec
+     * The comparison is based on {@code String.replaceAll("\\s+", "")}.
+     *
+     * @implNote
+     * This method does not perform semantic or structural comparison.
+     * It is intended for quick detection of formatting-only changes.
+     *
+     * @since 1.0.1
+     */
+    public boolean isOnlyWhitespaceChange() {
+        return !oldLine.equals(newLine)
+                && normalize(oldLine).equals(normalize(newLine));
+    }
+
+    /**
+     * Normalizes a line by removing all whitespace characters.
+     */
+    private static @NotNull String normalize(@NotNull String input) {
+        return input.replaceAll("\\s+", "");
+    }
+
+    /**
      * Returns the line number where the change occurred.
      *
      * @return the 1-based line number

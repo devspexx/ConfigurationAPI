@@ -226,17 +226,42 @@ public final class YamlConfigWatcher {
     }
 
     /**
-     * Performs checksum validation, computes a diff snapshot, and triggers
-     * a configuration reload if the file content has changed.
+     * Performs checksum validation and triggers a reload if the file content has changed.
      *
-     * <p>The reload operation is executed on the main server thread and followed
-     * by dispatching a {@link ConfigReloadedEvent} containing diff metadata.</p>
+     * <p>This method includes safeguards against transient file system states,
+     * such as temporary deletion or recreation of the file during write operations.</p>
+     *
+     * @apiNote
+     * If the file does not exist at the time of invocation, the reload is skipped
+     * to prevent unnecessary errors and log spam.
+     *
+     * @implSpec
+     * Reload is only performed if:
+     * <ul>
+     *     <li>The file exists</li>
+     *     <li>The computed checksum differs from the previous value</li>
+     * </ul>
+     *
+     * @implNote
+     * Some editors replace files atomically (delete + recreate). This guard prevents
+     * false-positive reload attempts during such operations.
+     *
+     * @since 1.0.1
      */
     private void reload() {
 
         File file = yamlConfig.file();
 
+        // 🔥 NEW: existence guard
+        if (!file.exists()) {
+            plugin.getLogger().fine(() ->
+                    "[ConfigWatcher] File missing, skipping reload: " + file.getName()
+            );
+            return;
+        }
+
         String newChecksum = FileChecksum.sha256(file);
+
         if (newChecksum.equals(lastChecksum)) return;
 
         String oldChecksum = lastChecksum;
@@ -276,6 +301,7 @@ public final class YamlConfigWatcher {
         lastChecksum = newChecksum;
         lastContent = newContent;
 
+        // snapshot values for lambda (effectively final)
         final int finalChanged = changed;
         final int finalAdded = added;
         final int finalRemoved = removed;
@@ -302,17 +328,34 @@ public final class YamlConfigWatcher {
     }
 
     /**
-     * Reads the full content of a file as a string.
+     * Reads the full content of the specified file as a string.
      *
-     * <p>If the file cannot be read, an empty string is returned.</p>
+     * <p>If an error occurs during reading, an empty string is returned and
+     * a warning is logged to the plugin logger.</p>
      *
-     * @param file the file to read
-     * @return file content, or empty string if reading fails
+     * @param file the file to read, must not be {@code null}
+     * @return file content as a string, or an empty string if reading fails
+     *
+     * @apiNote
+     * This method is intentionally fail-safe and does not propagate exceptions,
+     * as it is used within a file-watching context where stability is preferred.
+     *
+     * @implSpec
+     * File content is read using {@link Files#readString(Path)}.
+     *
+     * @implNote
+     * Returning an empty string ensures that diff computation can proceed
+     * without interruption, even if file access temporarily fails.
+     *
+     * @since 1.0.1
      */
-    private @NotNull String readContentSafe(File file) {
+    private @NotNull String readContentSafe(@NotNull File file) {
         try {
             return Files.readString(file.toPath());
         } catch (Exception e) {
+            plugin.getLogger().warning(
+                    "[ConfigWatcher] Failed to read config file: " + file.getAbsolutePath()
+            );
             return "";
         }
     }
