@@ -37,102 +37,39 @@ import java.util.concurrent.atomic.AtomicBoolean;
  *
  * @implSpec
  * Change detection is guarded by SHA-256 checksums computed via
- * {@link FileChecksum}. Diff computation is performed using a simple
- * line-by-line comparison of file content snapshots.
+ * {@link FileChecksum}. Diff computation is performed using a manual
+ * line parsing algorithm with O(n) complexity.
  *
  * @implNote
- * The watcher stores the previous file content in memory to enable diff
- * computation. This approach prioritizes deterministic behavior and simplicity
- * over minimal memory usage. The tracked {@link YamlConfig} reference is
- * declared {@code volatile} to ensure visibility across threads during
- * atomic swap updates.
+ * A custom line-splitting implementation is used instead of
+ * {@link String#split(String)} to avoid regex overhead. Diff lists are lazily
+ * allocated and skipped entirely when no changes are detected.
  *
  * @since 1.0.0
  */
 public final class YamlConfigWatcher {
 
-    /**
-     * Owning plugin instance used for scheduling and event dispatching.
-     *
-     * @since 1.0.0
-     */
     private final JavaPlugin plugin;
-
-    /**
-     * Callback invoked to perform a configuration reload.
-     *
-     * <p>This callback is expected to trigger an atomic replacement of the
-     * configuration instance within the managing component.</p>
-     *
-     * @since 1.0.0
-     */
     private final Runnable reloadCallback;
 
-    /**
-     * The currently tracked configuration instance.
-     *
-     * <p>Declared {@code volatile} to ensure visibility across threads.</p>
-     *
-     * @since 1.0.0
-     */
     private volatile YamlConfig yamlConfig;
-
-    /**
-     * The last known checksum of the configuration file.
-     *
-     * @since 1.0.0
-     */
     private volatile String lastChecksum;
-
-    /**
-     * The last known full content of the configuration file.
-     *
-     * @since 1.0.0
-     */
     private volatile String lastContent;
 
-    /**
-     * The underlying watch service used for file system monitoring.
-     *
-     * @since 1.0.0
-     */
     private WatchService watchService;
-
-    /**
-     * Dedicated thread responsible for processing watch events.
-     *
-     * @since 1.0.0
-     */
     private Thread thread;
 
-    /**
-     * Indicates whether the watcher is currently running.
-     *
-     * @since 1.0.0
-     */
     private final AtomicBoolean running = new AtomicBoolean(false);
-
-    /**
-     * Timestamp of the last processed reload event, used for debounce control.
-     *
-     * @since 1.0.0
-     */
     private volatile long lastReload = 0;
 
-    /**
-     * Minimum interval in milliseconds between consecutive reload attempts.
-     *
-     * @since 1.0.0
-     */
     private static final long DEBOUNCE_MS = 300;
 
     /**
      * Constructs a new {@code YamlConfigWatcher}.
      *
-     * @param plugin         the owning plugin instance, must not be {@code null}
-     * @param yamlConfig     the configuration to monitor, must not be {@code null}
-     * @param reloadCallback the callback responsible for performing reload logic,
-     *                       must not be {@code null}
+     * @param plugin         the owning plugin instance
+     * @param yamlConfig     the configuration to monitor
+     * @param reloadCallback the reload callback
      *
      * @since 1.0.0
      */
@@ -147,10 +84,9 @@ public final class YamlConfigWatcher {
     }
 
     /**
-     * Starts monitoring the configuration file for changes.
+     * Starts monitoring the configuration file.
      *
-     * @throws IOException if the {@link WatchService} cannot be initialized
-     * @throws IllegalStateException if the configuration file has no parent directory
+     * @throws IOException if watcher cannot be initialized
      *
      * @since 1.0.0
      */
@@ -182,9 +118,7 @@ public final class YamlConfigWatcher {
     }
 
     /**
-     * Stops monitoring the configuration file and releases associated resources.
-     *
-     * <p>This method is safe to invoke multiple times.</p>
+     * Stops the watcher.
      *
      * @since 1.0.0
      */
@@ -201,9 +135,22 @@ public final class YamlConfigWatcher {
     /**
      * Updates the tracked configuration reference.
      *
-     * <p>This is typically invoked after an atomic configuration swap.</p>
+     * <p>This method is typically invoked after an atomic configuration swap
+     * to ensure the watcher operates on the latest {@link YamlConfig} instance.</p>
      *
      * @param config the new configuration instance, must not be {@code null}
+     *
+     * @apiNote
+     * This method does not trigger a reload. It only updates the internal reference
+     * used for subsequent change detection.
+     *
+     * @implSpec
+     * The reference is updated using a {@code volatile} write to guarantee
+     * visibility across threads.
+     *
+     * @implNote
+     * This method is expected to be called by the managing component immediately
+     * after replacing the configuration instance.
      *
      * @since 1.0.0
      */
@@ -212,7 +159,7 @@ public final class YamlConfigWatcher {
     }
 
     /**
-     * Recomputes and updates the stored checksum for the current configuration file.
+     * Updates the stored checksum.
      *
      * @since 1.0.0
      */
@@ -220,14 +167,6 @@ public final class YamlConfigWatcher {
         this.lastChecksum = FileChecksum.sha256(yamlConfig.file());
     }
 
-    /**
-     * Main event processing loop executed by the watcher thread.
-     *
-     * <p>This method blocks on {@link WatchService#take()} and processes file system
-     * events until the watcher is stopped.</p>
-     *
-     * @since 1.0.0
-     */
     private void run() {
 
         while (running.get()) {
@@ -259,25 +198,7 @@ public final class YamlConfigWatcher {
     }
 
     /**
-     * Performs checksum validation and triggers a reload if the file content has changed.
-     *
-     * <p>This method includes safeguards against transient file system states,
-     * such as temporary deletion or recreation of the file during write operations.</p>
-     *
-     * @apiNote
-     * If the file does not exist at the time of invocation, the reload is skipped
-     * to prevent unnecessary errors and log spam.
-     *
-     * @implSpec
-     * Reload is only performed if:
-     * <ul>
-     *     <li>The file exists</li>
-     *     <li>The computed checksum differs from the previous value</li>
-     * </ul>
-     *
-     * @implNote
-     * Some editors replace files atomically (delete + recreate). This guard prevents
-     * false-positive reload attempts during such operations.
+     * Performs checksum validation and triggers reload if needed.
      *
      * @since 1.0.1
      */
@@ -296,15 +217,19 @@ public final class YamlConfigWatcher {
         if (newChecksum.equals(lastChecksum)) return;
 
         String oldChecksum = lastChecksum;
-
         String newContent = readContentSafe(file);
 
-        List<ConfigLineDifference> diffs = new ArrayList<>();
+        if (newContent.equals(lastContent)) {
+            lastChecksum = newChecksum;
+            lastContent = newContent;
+            return;
+        }
 
-        String[] oldLines = lastContent.split("\n", -1);
-        String[] newLines = newContent.split("\n", -1);
+        List<String> oldLines = splitLines(lastContent);
+        List<String> newLines = splitLines(newContent);
 
-        int max = Math.max(oldLines.length, newLines.length);
+        int max = Math.max(oldLines.size(), newLines.size());
+        List<ConfigLineDifference> diffs = null;
 
         int changed = 0;
         int added = 0;
@@ -312,15 +237,19 @@ public final class YamlConfigWatcher {
 
         for (int i = 0; i < max; i++) {
 
-            String oldLine = i < oldLines.length ? oldLines[i] : "";
-            String newLine = i < newLines.length ? newLines[i] : "";
+            String oldLine = i < oldLines.size() ? oldLines.get(i) : "";
+            String newLine = i < newLines.size() ? newLines.get(i) : "";
 
             if (!oldLine.equals(newLine)) {
 
+                if (diffs == null) {
+                    diffs = new ArrayList<>(max);
+                }
+
                 diffs.add(new ConfigLineDifference(i + 1, oldLine, newLine));
 
-                if (i >= oldLines.length) added++;
-                else if (i >= newLines.length) removed++;
+                if (i >= oldLines.size()) added++;
+                else if (i >= newLines.size()) removed++;
                 else changed++;
             }
         }
@@ -329,17 +258,16 @@ public final class YamlConfigWatcher {
         lastContent = newContent;
 
         final ConfigChangeSummary summary = new ConfigChangeSummary(changed, added, removed);
-        final List<ConfigLineDifference> finalDiffs = List.copyOf(diffs);
+        final List<ConfigLineDifference> finalDiffs =
+                diffs == null ? List.of() : List.copyOf(diffs);
 
         plugin.getServer().getScheduler().runTask(plugin, () -> {
 
             reloadCallback.run();
 
-            YamlConfig updated = this.yamlConfig;
-
             plugin.getServer().getPluginManager().callEvent(
                     new ConfigReloadedEvent(
-                            updated,
+                            yamlConfig,
                             oldChecksum,
                             newChecksum,
                             summary,
@@ -350,24 +278,28 @@ public final class YamlConfigWatcher {
     }
 
     /**
-     * Reads the full content of the specified file as a string.
+     * Splits file content into lines without using regex.
      *
-     * <p>If an error occurs during reading, an empty string is returned and
-     * a warning is logged to the plugin logger.</p>
-     *
-     * @param file the file to read, must not be {@code null}
-     * @return file content as a string, or an empty string if reading fails
-     *
-     * @apiNote
-     * This method is intentionally fail-safe and does not propagate exceptions,
-     * as it is used within a file-watching context where stability is preferred.
-     *
-     * @implSpec
-     * File content is read using {@link Files#readString(Path)}.
-     *
-     * @implNote
-     * Returning an empty string ensures that diff computation can proceed
-     * without interruption, even if file access temporarily fails.
+     * @since 1.0.3
+     */
+    private static @NotNull List<String> splitLines(@NotNull String content) {
+
+        List<String> lines = new ArrayList<>();
+        int start = 0;
+
+        for (int i = 0; i < content.length(); i++) {
+            if (content.charAt(i) == '\n') {
+                lines.add(content.substring(start, i));
+                start = i + 1;
+            }
+        }
+
+        lines.add(content.substring(start));
+        return lines;
+    }
+
+    /**
+     * Reads file content safely.
      *
      * @since 1.0.1
      */
