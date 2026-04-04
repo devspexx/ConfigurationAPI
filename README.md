@@ -4,8 +4,7 @@ A lightweight, high-performance YAML configuration API with automatic file watch
 
 ---
 
-## Features
-
+### Features
 - Automatic config reload on file changes (WatchService-based)
 - Atomic, thread-safe configuration swapping
 - Line-level diff tracking (changed / added / removed)
@@ -14,7 +13,12 @@ A lightweight, high-performance YAML configuration API with automatic file watch
 - Optimized (no regex, O(n) diff, minimal allocations)
 - Clean integration with Bukkit/Paper event system
 
----
+### Why ConfigurationAPI?
+
+- Eliminates manual reload logic
+- Provides insight into config changes (diffs)
+- Prevents unsafe concurrent access
+- Designed for high-performance plugin environments
 
 ## Installation
 
