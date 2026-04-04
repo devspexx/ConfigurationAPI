@@ -40,16 +40,22 @@ public final class YamlConfig {
 
     /**
      * The underlying configuration file on disk.
+     *
+     * @since 1.0.0
      */
     private final File file;
 
     /**
      * Metadata describing the underlying file.
+     *
+     * @since 1.0.0
      */
     private final FileProperties properties;
 
     /**
      * Parsed configuration snapshot.
+     *
+     * @since 1.0.0
      */
     private final FileConfiguration config;
 
@@ -58,6 +64,8 @@ public final class YamlConfig {
      *
      * @param file   the configuration file, must not be {@code null}
      * @param config the parsed configuration snapshot, must not be {@code null}
+     *
+     * @since 1.0.0
      */
     public YamlConfig(
             @NotNull File file,
@@ -71,6 +79,8 @@ public final class YamlConfig {
      * Returns the underlying configuration file.
      *
      * @return the configuration file, never {@code null}
+     *
+     * @since 1.0.0
      */
     public @NotNull File file() {
         return file;
@@ -80,6 +90,8 @@ public final class YamlConfig {
      * Returns metadata associated with this configuration file.
      *
      * @return file properties, never {@code null}
+     *
+     * @since 1.0.0
      */
     public @NotNull FileProperties properties() {
         return properties;
@@ -92,6 +104,8 @@ public final class YamlConfig {
      * at the time this {@code YamlConfig} was created.</p>
      *
      * @return the configuration snapshot, never {@code null}
+     *
+     * @since 1.0.0
      */
     public @NotNull FileConfiguration config() {
         return config;

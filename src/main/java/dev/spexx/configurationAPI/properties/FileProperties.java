@@ -39,16 +39,22 @@ public final class FileProperties {
 
     /**
      * The underlying file.
+     *
+     * @since 1.0.0
      */
     private final @NotNull File file;
 
     /**
      * Normalized absolute path of the file.
+     *
+     * @since 1.0.0
      */
     private final @NotNull Path path;
 
     /**
      * Lazily initialized file attributes.
+     *
+     * @since 1.0.0
      */
     private BasicFileAttributes attributes;
 
@@ -56,6 +62,8 @@ public final class FileProperties {
      * Constructs a new {@code FileProperties} instance for the given file.
      *
      * @param file the file to inspect, must not be {@code null}
+     *
+     * @since 1.0.0
      */
     public FileProperties(@NotNull File file) {
         this.file = file;
@@ -66,6 +74,8 @@ public final class FileProperties {
      * Returns the file name including its extension.
      *
      * @return file name with extension, never {@code null}
+     *
+     * @since 1.0.0
      */
     public @NotNull String getName() {
         return file.getName();
@@ -75,6 +85,8 @@ public final class FileProperties {
      * Returns the file name without its extension.
      *
      * @return base file name, never {@code null}
+     *
+     * @since 1.0.0
      */
     public @NotNull String getBaseName() {
         String name = file.getName();
@@ -86,6 +98,8 @@ public final class FileProperties {
      * Returns the file extension without the leading dot.
      *
      * @return file extension, or an empty string if none exists
+     *
+     * @since 1.0.0
      */
     public @NotNull String getExtension() {
         String name = file.getName();
@@ -97,6 +111,8 @@ public final class FileProperties {
      * Returns the absolute file path as a string.
      *
      * @return absolute path, never {@code null}
+     *
+     * @since 1.0.0
      */
     public @NotNull String getAbsolutePath() {
         return file.getAbsolutePath();
@@ -107,6 +123,8 @@ public final class FileProperties {
      *
      * @return parent directory, never {@code null}
      * @throws IllegalStateException if the file has no parent directory
+     *
+     * @since 1.0.0
      */
     public @NotNull File getParent() {
         File parent = file.getParentFile();
@@ -120,6 +138,8 @@ public final class FileProperties {
      * Returns the file size in bytes.
      *
      * @return file size in bytes
+     *
+     * @since 1.0.0
      */
     public long getFileSize() {
         try {
@@ -133,6 +153,8 @@ public final class FileProperties {
      * Returns whether the file is empty.
      *
      * @return {@code true} if file size is zero, {@code false} otherwise
+     *
+     * @since 1.0.0
      */
     public boolean isEmpty() {
         return getFileSize() == 0;
@@ -142,6 +164,8 @@ public final class FileProperties {
      * Returns the last modified time of the file.
      *
      * @return last modified timestamp in milliseconds since epoch
+     *
+     * @since 1.0.0
      */
     public long getLastModified() {
         return file.lastModified();
@@ -151,6 +175,8 @@ public final class FileProperties {
      * Returns whether the file exists.
      *
      * @return {@code true} if the file exists, {@code false} otherwise
+     *
+     * @since 1.0.0
      */
     public boolean exists() {
         return file.exists();
@@ -160,6 +186,8 @@ public final class FileProperties {
      * Returns whether the file is hidden.
      *
      * @return {@code true} if the file is hidden, {@code false} otherwise
+     *
+     * @since 1.0.0
      */
     public boolean isHidden() {
         return file.isHidden();
@@ -169,6 +197,8 @@ public final class FileProperties {
      * Returns whether the file is readable.
      *
      * @return {@code true} if readable, {@code false} otherwise
+     *
+     * @since 1.0.0
      */
     public boolean canRead() {
         return file.canRead();
@@ -178,6 +208,8 @@ public final class FileProperties {
      * Returns whether the file is writable.
      *
      * @return {@code true} if writable, {@code false} otherwise
+     *
+     * @since 1.0.0
      */
     public boolean canWrite() {
         return file.canWrite();
@@ -187,6 +219,8 @@ public final class FileProperties {
      * Returns whether the file is executable.
      *
      * @return {@code true} if executable, {@code false} otherwise
+     *
+     * @since 1.0.0
      */
     public boolean canExecute() {
         return file.canExecute();
@@ -196,6 +230,8 @@ public final class FileProperties {
      * Returns the file creation time.
      *
      * @return creation time in milliseconds since epoch, or {@code -1} if unavailable
+     *
+     * @since 1.0.0
      */
     public long getCreationTime() {
         BasicFileAttributes attrs = attributes();
@@ -206,6 +242,8 @@ public final class FileProperties {
      * Returns the last access time of the file.
      *
      * @return last access time in milliseconds since epoch, or {@code -1} if unavailable
+     *
+     * @since 1.0.0
      */
     public long getLastAccessTime() {
         BasicFileAttributes attrs = attributes();
@@ -216,6 +254,8 @@ public final class FileProperties {
      * Returns the normalized {@link Path} representation of the file.
      *
      * @return normalized path, never {@code null}
+     *
+     * @since 1.0.0
      */
     public @NotNull Path toPath() {
         return path;
@@ -225,6 +265,8 @@ public final class FileProperties {
      * Returns cached file attributes, loading them if necessary.
      *
      * @return file attributes, or {@code null} if unavailable
+     *
+     * @since 1.0.0
      */
     private @Nullable BasicFileAttributes attributes() {
         if (attributes == null) {

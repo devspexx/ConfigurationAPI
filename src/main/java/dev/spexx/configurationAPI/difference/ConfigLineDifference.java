@@ -33,38 +33,48 @@ import org.jetbrains.annotations.NotNull;
  *
  * @since 1.0.0
  */
-public final class ConfigLineDiff {
+public final class ConfigLineDifference {
 
     /**
      * The 1-based line number where the change occurred.
+     *
+     * @since 1.0.0
      */
     private final int lineNumber;
 
     /**
      * The original content of the line prior to modification.
+     *
+     * @since 1.0.0
      */
     private final String oldLine;
 
     /**
      * The updated content of the line after modification.
+     *
+     * @since 1.0.0
      */
     private final String newLine;
 
     /**
      * The difference in character length between {@code newLine} and {@code oldLine}.
+     *
+     * @since 1.0.0
      */
     private final int charDelta;
 
     /**
-     * Constructs a new {@code ConfigLineDiff} instance.
+     * Constructs a new {@code ConfigLineDifference} instance.
      *
      * @param lineNumber the 1-based line number where the change occurred
      * @param oldLine    the original line content, must not be {@code null}
      * @param newLine    the updated line content, must not be {@code null}
+     *
+     * @since 1.0.0
      */
-    public ConfigLineDiff(int lineNumber,
-                          @NotNull String oldLine,
-                          @NotNull String newLine) {
+    public ConfigLineDifference(int lineNumber,
+                                @NotNull String oldLine,
+                                @NotNull String newLine) {
         this.lineNumber = lineNumber;
         this.oldLine = oldLine;
         this.newLine = newLine;
@@ -108,6 +118,11 @@ public final class ConfigLineDiff {
 
     /**
      * Normalizes a line by removing all whitespace characters.
+     *
+     * @param input the input string, must not be {@code null}
+     * @return normalized string without whitespace
+     *
+     * @since 1.0.1
      */
     private static @NotNull String normalize(@NotNull String input) {
         return input.replaceAll("\\s+", "");
@@ -117,6 +132,8 @@ public final class ConfigLineDiff {
      * Returns the line number where the change occurred.
      *
      * @return the 1-based line number
+     *
+     * @since 1.0.0
      */
     public int getLineNumber() {
         return lineNumber;
@@ -126,6 +143,8 @@ public final class ConfigLineDiff {
      * Returns the original line content.
      *
      * @return the previous line value, never {@code null}
+     *
+     * @since 1.0.0
      */
     public @NotNull String getOldLine() {
         return oldLine;
@@ -135,6 +154,8 @@ public final class ConfigLineDiff {
      * Returns the updated line content.
      *
      * @return the new line value, never {@code null}
+     *
+     * @since 1.0.0
      */
     public @NotNull String getNewLine() {
         return newLine;
@@ -147,6 +168,8 @@ public final class ConfigLineDiff {
      * value indicates it is shorter.</p>
      *
      * @return the character length difference
+     *
+     * @since 1.0.0
      */
     public int getCharDelta() {
         return charDelta;

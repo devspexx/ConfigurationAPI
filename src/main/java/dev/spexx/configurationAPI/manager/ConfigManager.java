@@ -47,16 +47,22 @@ public final class ConfigManager {
 
     /**
      * Owning plugin instance used for scheduling and logging.
+     *
+     * @since 1.0.0
      */
     private final @NotNull JavaPlugin plugin;
 
     /**
      * Cache of loaded configurations indexed by normalized path.
+     *
+     * @since 1.0.0
      */
     private final ConcurrentHashMap<Path, YamlConfig> configs = new ConcurrentHashMap<>();
 
     /**
      * Active watchers associated with loaded configurations.
+     *
+     * @since 1.0.0
      */
     private final ConcurrentHashMap<Path, YamlConfigWatcher> watchers = new ConcurrentHashMap<>();
 
@@ -64,6 +70,8 @@ public final class ConfigManager {
      * Constructs a new {@code ConfigManager}.
      *
      * @param plugin the owning plugin instance, must not be {@code null}
+     *
+     * @since 1.0.0
      */
     public ConfigManager(@NotNull JavaPlugin plugin) {
         this.plugin = plugin;
@@ -75,6 +83,8 @@ public final class ConfigManager {
      * @param file the configuration file, must not be {@code null}
      * @return the corresponding configuration snapshot, never {@code null}
      * @throws IllegalStateException if the configuration is not loaded
+     *
+     * @since 1.0.0
      */
     public @NotNull YamlConfig get(@NotNull File file) {
         Path path = normalize(file.toPath());
@@ -92,6 +102,8 @@ public final class ConfigManager {
      *
      * @param file the configuration file, must not be {@code null}
      * @return the existing or newly loaded configuration snapshot, never {@code null}
+     *
+     * @since 1.0.0
      */
     public @NotNull YamlConfig getOrLoad(@NotNull File file) {
         Path path = normalize(file.toPath());
@@ -125,6 +137,8 @@ public final class ConfigManager {
      * This method bridges bundled resources and the configuration management
      * system by ensuring that all managed configurations operate on real
      * files within the plugin data folder.
+     *
+     * @since 1.0.0
      */
     public @NotNull YamlConfig getOrLoadResource(@NotNull String name) {
         plugin.saveResource(name, false);
@@ -138,6 +152,8 @@ public final class ConfigManager {
      * the previous instance in the cache.</p>
      *
      * @param file the configuration file, must not be {@code null}
+     *
+     * @since 1.0.0
      */
     public void reload(@NotNull File file) {
         Path path = normalize(file.toPath());
@@ -164,6 +180,8 @@ public final class ConfigManager {
      * Unloads the specified configuration and stops its associated watcher.
      *
      * @param file the configuration file, must not be {@code null}
+     *
+     * @since 1.0.0
      */
     public void unload(@NotNull File file) {
         Path path = normalize(file.toPath());
@@ -180,6 +198,8 @@ public final class ConfigManager {
      * Returns all currently loaded configuration snapshots.
      *
      * @return collection of configurations, never {@code null}
+     *
+     * @since 1.0.0
      */
     public @NotNull Collection<YamlConfig> getAll() {
         return configs.values();
@@ -192,6 +212,8 @@ public final class ConfigManager {
      *
      * @param file the configuration file, must not be {@code null}
      * @return the loaded configuration snapshot, never {@code null}
+     *
+     * @since 1.0.0
      */
     private @NotNull YamlConfig load(@NotNull File file) {
 
@@ -231,6 +253,8 @@ public final class ConfigManager {
      *
      * @param path the raw path, must not be {@code null}
      * @return normalized absolute path, never {@code null}
+     *
+     * @since 1.0.0
      */
     private @NotNull Path normalize(@NotNull Path path) {
         return path.toAbsolutePath().normalize();

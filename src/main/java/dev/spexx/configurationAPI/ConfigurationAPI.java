@@ -1,7 +1,7 @@
 package dev.spexx.configurationAPI;
 
 import dev.spexx.configurationAPI.config.YamlConfig;
-import dev.spexx.configurationAPI.difference.ConfigLineDiff;
+import dev.spexx.configurationAPI.difference.ConfigLineDifference;
 import dev.spexx.configurationAPI.events.ConfigReloadedEvent;
 import dev.spexx.configurationAPI.manager.ConfigManager;
 import org.bukkit.event.EventHandler;
@@ -25,25 +25,17 @@ import org.jetbrains.annotations.NotNull;
  */
 public final class ConfigurationAPI extends JavaPlugin implements Listener {
 
-    /**
-     * Constructs the plugin instance.
-     *
-     * @since 1.0
-     */
-    public ConfigurationAPI() { }
-
-    private ConfigManager configManager;
+    private ConfigurationAPI() {
+        throw new UnsupportedOperationException();
+    }
 
     @Override
     public void onEnable() {
 
-        this.configManager = new ConfigManager(this);
+        ConfigManager configManager = new ConfigManager(this);
 
         // load test config
         YamlConfig config = configManager.getOrLoadResource("config.yml");
-
-        getLogger().info("Loaded config value: " +
-                config.config().getInt("value"));
 
         // register event listener
         getServer().getPluginManager().registerEvents(this, this);
@@ -61,25 +53,6 @@ public final class ConfigurationAPI extends JavaPlugin implements Listener {
      */
     @EventHandler
     public void onReload(@NotNull ConfigReloadedEvent event) {
-
-        for (ConfigLineDiff diff : event.getDiffs()) {
-
-            int delta = diff.getCharDelta();
-            String sign = delta > 0 ? "+" : "";
-
-            String type =
-                    diff.getOldLine().isEmpty() ? "ADDED" :
-                            diff.getNewLine().isEmpty() ? "REMOVED" :
-                                    diff.isOnlyWhitespaceChange() ? "WHITESPACE" :
-                                            "MODIFIED";
-
-            getLogger().info(() ->
-                    "[ConfigWatcher] file=" + event.getConfig().file().getName()
-                            + " line=" + diff.getLineNumber()
-                            + " type=" + type
-                            + " delta=" + sign + delta
-            );
-        }
 
         getLogger().info("Config reloaded: " +
                 event.getConfig().file().getName());

@@ -1,7 +1,8 @@
 package dev.spexx.configurationAPI.watcher;
 
 import dev.spexx.configurationAPI.config.YamlConfig;
-import dev.spexx.configurationAPI.difference.ConfigLineDiff;
+import dev.spexx.configurationAPI.difference.ConfigChangeSummary;
+import dev.spexx.configurationAPI.difference.ConfigLineDifference;
 import dev.spexx.configurationAPI.events.ConfigReloadedEvent;
 import dev.spexx.configurationAPI.util.FileChecksum;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -22,7 +23,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * using {@link WatchService} and filters events specific to the file name.</p>
  *
  * <p>In addition to change detection, this watcher performs line-level diff
- * analysis between file snapshots, producing structured {@link ConfigLineDiff}
+ * analysis between file snapshots, producing structured {@link ConfigLineDifference}
  * instances for downstream consumers.</p>
  *
  * <p>Reload operations are delegated to an external callback, typically managed
@@ -52,6 +53,8 @@ public final class YamlConfigWatcher {
 
     /**
      * Owning plugin instance used for scheduling and event dispatching.
+     *
+     * @since 1.0.0
      */
     private final JavaPlugin plugin;
 
@@ -60,6 +63,8 @@ public final class YamlConfigWatcher {
      *
      * <p>This callback is expected to trigger an atomic replacement of the
      * configuration instance within the managing component.</p>
+     *
+     * @since 1.0.0
      */
     private final Runnable reloadCallback;
 
@@ -67,41 +72,57 @@ public final class YamlConfigWatcher {
      * The currently tracked configuration instance.
      *
      * <p>Declared {@code volatile} to ensure visibility across threads.</p>
+     *
+     * @since 1.0.0
      */
     private volatile YamlConfig yamlConfig;
 
     /**
      * The last known checksum of the configuration file.
+     *
+     * @since 1.0.0
      */
     private volatile String lastChecksum;
 
     /**
      * The last known full content of the configuration file.
+     *
+     * @since 1.0.0
      */
     private volatile String lastContent;
 
     /**
      * The underlying watch service used for file system monitoring.
+     *
+     * @since 1.0.0
      */
     private WatchService watchService;
 
     /**
      * Dedicated thread responsible for processing watch events.
+     *
+     * @since 1.0.0
      */
     private Thread thread;
 
     /**
      * Indicates whether the watcher is currently running.
+     *
+     * @since 1.0.0
      */
     private final AtomicBoolean running = new AtomicBoolean(false);
 
     /**
      * Timestamp of the last processed reload event, used for debounce control.
+     *
+     * @since 1.0.0
      */
     private volatile long lastReload = 0;
 
     /**
      * Minimum interval in milliseconds between consecutive reload attempts.
+     *
+     * @since 1.0.0
      */
     private static final long DEBOUNCE_MS = 300;
 
@@ -112,6 +133,8 @@ public final class YamlConfigWatcher {
      * @param yamlConfig     the configuration to monitor, must not be {@code null}
      * @param reloadCallback the callback responsible for performing reload logic,
      *                       must not be {@code null}
+     *
+     * @since 1.0.0
      */
     public YamlConfigWatcher(@NotNull JavaPlugin plugin,
                              @NotNull YamlConfig yamlConfig,
@@ -128,6 +151,8 @@ public final class YamlConfigWatcher {
      *
      * @throws IOException if the {@link WatchService} cannot be initialized
      * @throws IllegalStateException if the configuration file has no parent directory
+     *
+     * @since 1.0.0
      */
     public void start() throws IOException {
 
@@ -160,6 +185,8 @@ public final class YamlConfigWatcher {
      * Stops monitoring the configuration file and releases associated resources.
      *
      * <p>This method is safe to invoke multiple times.</p>
+     *
+     * @since 1.0.0
      */
     public void stop() {
         running.set(false);
@@ -177,6 +204,8 @@ public final class YamlConfigWatcher {
      * <p>This is typically invoked after an atomic configuration swap.</p>
      *
      * @param config the new configuration instance, must not be {@code null}
+     *
+     * @since 1.0.0
      */
     public void updateConfig(@NotNull YamlConfig config) {
         this.yamlConfig = config;
@@ -184,6 +213,8 @@ public final class YamlConfigWatcher {
 
     /**
      * Recomputes and updates the stored checksum for the current configuration file.
+     *
+     * @since 1.0.0
      */
     public void updateChecksum() {
         this.lastChecksum = FileChecksum.sha256(yamlConfig.file());
@@ -194,6 +225,8 @@ public final class YamlConfigWatcher {
      *
      * <p>This method blocks on {@link WatchService#take()} and processes file system
      * events until the watcher is stopped.</p>
+     *
+     * @since 1.0.0
      */
     private void run() {
 
@@ -252,7 +285,6 @@ public final class YamlConfigWatcher {
 
         File file = yamlConfig.file();
 
-        // 🔥 NEW: existence guard
         if (!file.exists()) {
             plugin.getLogger().fine(() ->
                     "[ConfigWatcher] File missing, skipping reload: " + file.getName()
@@ -261,14 +293,13 @@ public final class YamlConfigWatcher {
         }
 
         String newChecksum = FileChecksum.sha256(file);
-
         if (newChecksum.equals(lastChecksum)) return;
 
         String oldChecksum = lastChecksum;
 
         String newContent = readContentSafe(file);
 
-        List<ConfigLineDiff> diffs = new ArrayList<>();
+        List<ConfigLineDifference> diffs = new ArrayList<>();
 
         String[] oldLines = lastContent.split("\n", -1);
         String[] newLines = newContent.split("\n", -1);
@@ -286,26 +317,19 @@ public final class YamlConfigWatcher {
 
             if (!oldLine.equals(newLine)) {
 
-                diffs.add(new ConfigLineDiff(i + 1, oldLine, newLine));
+                diffs.add(new ConfigLineDifference(i + 1, oldLine, newLine));
 
-                if (i >= oldLines.length) {
-                    added++;
-                } else if (i >= newLines.length) {
-                    removed++;
-                } else {
-                    changed++;
-                }
+                if (i >= oldLines.length) added++;
+                else if (i >= newLines.length) removed++;
+                else changed++;
             }
         }
 
         lastChecksum = newChecksum;
         lastContent = newContent;
 
-        // snapshot values for lambda (effectively final)
-        final int finalChanged = changed;
-        final int finalAdded = added;
-        final int finalRemoved = removed;
-        final List<ConfigLineDiff> finalDiffs = List.copyOf(diffs);
+        final ConfigChangeSummary summary = new ConfigChangeSummary(changed, added, removed);
+        final List<ConfigLineDifference> finalDiffs = List.copyOf(diffs);
 
         plugin.getServer().getScheduler().runTask(plugin, () -> {
 
@@ -318,9 +342,7 @@ public final class YamlConfigWatcher {
                             updated,
                             oldChecksum,
                             newChecksum,
-                            finalChanged,
-                            finalAdded,
-                            finalRemoved,
+                            summary,
                             finalDiffs
                     )
             );
@@ -349,7 +371,7 @@ public final class YamlConfigWatcher {
      *
      * @since 1.0.1
      */
-    private @NotNull String readContentSafe(@NotNull File file) {
+    private @NotNull String readContentSafe(File file) {
         try {
             return Files.readString(file.toPath());
         } catch (Exception e) {

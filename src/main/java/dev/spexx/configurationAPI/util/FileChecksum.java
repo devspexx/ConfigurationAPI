@@ -33,6 +33,8 @@ public final class FileChecksum {
 
     /**
      * Private constructor to prevent instantiation.
+     *
+     * @since 1.0.0
      */
     private FileChecksum() {}
 
@@ -45,6 +47,8 @@ public final class FileChecksum {
      * @param file the file to compute the checksum for, must not be {@code null}
      * @return the SHA-256 checksum as a lowercase hexadecimal string, never {@code null}
      * @throws RuntimeException if an error occurs while reading the file or computing the hash
+     *
+     * @since 1.0.0
      */
     public static @NotNull String sha256(File file) {
         try (FileInputStream fis = new FileInputStream(file)) {
