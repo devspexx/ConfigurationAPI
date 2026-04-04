@@ -1,0 +1,10 @@
+name: ConfigurationAPI
+description: $description
+version: '1.0.0'
+
+main: dev.spexx.configurationAPI.ConfigurationAPI
+api-version: '1.21.11'
+load: POSTWORLD
+
+authors: [ Spexx ]
+website: www.spexx.dev
