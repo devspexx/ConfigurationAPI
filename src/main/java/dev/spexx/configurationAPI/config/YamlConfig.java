@@ -1,329 +1,254 @@
-package dev.spexx.configurationAPI.manager;
+package dev.spexx.configurationAPI.config;
 
-import dev.spexx.configurationAPI.config.ConfigLoadResult;
-import dev.spexx.configurationAPI.config.ConfigLoadStatus;
-import dev.spexx.configurationAPI.config.YamlConfig;
-import dev.spexx.configurationAPI.watcher.GlobalConfigWatcher;
-import org.bukkit.configuration.file.YamlConfiguration;
-import org.bukkit.plugin.java.JavaPlugin;
+import org.bukkit.configuration.file.FileConfiguration;
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
 
 import java.io.File;
-import java.io.IOException;
-import java.nio.file.Path;
-import java.util.Collection;
-import java.util.Objects;
+import java.util.List;
+import java.util.Optional;
 
 /**
- * Central access point for configuration files managed by the system.
+ * Immutable snapshot of a YAML configuration file.
  *
- * <p>This class is responsible for:</p>
+ * <p>This record encapsulates the following components:</p>
  * <ul>
- *     <li>Loading configuration files from disk</li>
- *     <li>Registering configurations with the global watcher</li>
- *     <li>Providing access to the latest immutable configuration snapshots</li>
+ *     <li>The underlying {@link File} on disk</li>
+ *     <li>The parsed {@link FileConfiguration} instance</li>
  * </ul>
  *
- * <h2>Architecture</h2>
- * <p>The {@link GlobalConfigWatcher} serves as the single source of truth for all
- * configuration state. This class delegates all state management to the watcher
- * and does not maintain its own cache.</p>
+ * <p>Each instance represents a point-in-time view of a configuration file.
+ * When the file is reloaded, a new {@code YamlConfig} instance is created
+ * and atomically replaces the previous instance.</p>
  *
- * <h2>Lifecycle</h2>
- * <p>This class provides multiple levels of control over configuration handling:</p>
+ * <h2>Immutability</h2>
+ * <p>This class is immutable. All fields are {@code final} and no mutator
+ * methods are provided. This ensures thread-safe access without requiring
+ * synchronization.</p>
+ *
+ * <h2>Usage</h2>
+ * <p>Instances should be treated as read-only snapshots. Consumers should not
+ * cache instances long-term if they require access to the most up-to-date
+ * configuration state.</p>
+ *
+ * <h2>Typed Access</h2>
+ * <p>This class provides two styles of accessors:</p>
  * <ul>
- *     <li>{@link #get(File)} &mdash; retrieve an already loaded configuration</li>
- *     <li>{@link #getOrLoad(File)} &mdash; retrieve or load if missing</li>
- *     <li>{@link #load(File)} &mdash; explicitly load and register</li>
- *     <li>{@link #createIfMissing(File)} &mdash; create file if needed, then load</li>
- *     <li>{@link #tryLoad(File)} &mdash; safe load with structured result</li>
- *     <li>{@link #tryCreate(File)} &mdash; safe create with structured result</li>
+ *     <li>Optional-based getters for safe, explicit handling of missing values</li>
+ *     <li>Default-based getters for convenience when fallback values are acceptable</li>
  * </ul>
  *
- * <h2>Thread Safety</h2>
- * <p>This class is thread-safe. The underlying watcher uses concurrent data structures
- * and atomic replacement of {@link YamlConfig} instances.</p>
- *
- * @apiNote {@link YamlConfig} instances are immutable snapshots. Consumers should
- * retrieve them on demand instead of caching long-term references.
+ * @param file the backing file on disk, must not be {@code null}
+ * @param config parsed configuration snapshot, must not be {@code null}
  *
  * @since 1.1.0
  */
-public final class ConfigManager {
-
-    private final @NotNull JavaPlugin plugin;
-    private final @NotNull GlobalConfigWatcher watcher;
+public record YamlConfig(@NotNull File file, @NotNull FileConfiguration config) {
 
     /**
-     * Creates a new {@code ConfigManager}.
+     * Returns the underlying configuration file.
      *
-     * <p>This initializes and starts the {@link GlobalConfigWatcher}, which begins
-     * monitoring registered configuration files for changes.</p>
+     * @return backing file, never {@code null}
      *
-     * @param plugin owning plugin instance, must not be {@code null}
-     *
-     * @throws NullPointerException if {@code plugin} is {@code null}
-     * @throws RuntimeException if watcher initialization fails
+     * @since 1.1.0
      */
-    public ConfigManager(@NotNull JavaPlugin plugin) {
-        this.plugin = Objects.requireNonNull(plugin, "plugin");
-
-        try {
-            this.watcher = new GlobalConfigWatcher(plugin);
-            this.watcher.start();
-        } catch (IOException e) {
-            throw new RuntimeException("Failed to initialize GlobalConfigWatcher", e);
-        }
+    @Override
+    public @NotNull File file() {
+        return file;
     }
 
     /**
-     * Returns the latest configuration snapshot for the given file.
+     * Returns the parsed configuration snapshot.
      *
-     * <p>The configuration must have been previously loaded using one of the
-     * loading methods. This method does not attempt to load the file.</p>
+     * <p>The returned {@link FileConfiguration} should be treated as read-only.
+     * Modifying it directly may lead to inconsistent behavior.</p>
      *
-     * @param file configuration file, must not be {@code null}
-     * @return latest {@link YamlConfig} snapshot, never {@code null}
+     * @return configuration snapshot, never {@code null}
      *
-     * @throws NullPointerException if {@code file} is {@code null}
-     * @throws IllegalStateException if the configuration is not loaded
+     * @since 1.1.0
      */
-    public @NotNull YamlConfig get(@NotNull File file) {
-        Path path = normalize(file.toPath());
-
-        YamlConfig config = watcher.get(path);
-        if (config == null) {
-            throw new IllegalStateException("Config not loaded: " + path);
-        }
-
+    @Override
+    public @NotNull FileConfiguration config() {
         return config;
     }
 
     /**
-     * Returns an existing configuration or loads it if not already tracked.
+     * Returns a string value at the given path.
      *
-     * <p>If the configuration is not registered, it will be loaded from disk
-     * and registered with the watcher.</p>
+     * @param path configuration path, must not be {@code null}
+     * @return optional containing the value, or empty if not present
      *
-     * @param file configuration file, must not be {@code null}
-     * @return latest {@link YamlConfig} snapshot, never {@code null}
-     *
-     * @throws NullPointerException if {@code file} is {@code null}
+     * @since 1.1.0
      */
-    public @NotNull YamlConfig getOrLoad(@NotNull File file) {
-        Path path = normalize(file.toPath());
-
-        YamlConfig existing = watcher.get(path);
-        if (existing != null) {
-            return existing;
-        }
-
-        return loadInternal(file);
+    public @NotNull Optional<String> getString(@NotNull String path) {
+        return Optional.ofNullable(config.getString(path));
     }
 
     /**
-     * Loads a configuration file intended for internal plugin usage.
+     * Returns an integer value at the given path.
      *
-     * <p>This method guarantees that the configuration file exists by copying it
-     * from the plugin JAR if it is not already present in the plugin's data folder.</p>
+     * <p>This method avoids Bukkit's implicit default value ({@code 0}) by
+     * checking for path existence first.</p>
      *
-     * <p>If the file already exists, it is simply loaded and returned.</p>
+     * @param path configuration path, must not be {@code null}
+     * @return optional containing the value, or empty if not present
      *
-     * <p><b>Behavior:</b></p>
-     * <ul>
-     *     <li>If the file does not exist, it is copied from the plugin resources</li>
-     *     <li>If the file exists, it is loaded normally</li>
-     *     <li>The configuration is always registered with the watcher</li>
-     * </ul>
-     *
-     * <p><b>Failure Conditions:</b></p>
-     * <p>This method will throw an exception if the resource does not exist inside
-     * the plugin JAR. It is intended strictly for internal configuration files that
-     * are guaranteed to be packaged with the plugin.</p>
-     *
-     * <p>Example usage:</p>
-     * <pre>
-     * YamlConfig config = manager.getInternal("config.yml");
-     * </pre>
-     *
-     * @param resourceName name of the resource inside the plugin JAR (e.g. {@code "config.yml"}), must not be {@code null}
-     * @return loaded {@link YamlConfig} snapshot, never {@code null}
-     *
-     * @throws NullPointerException if {@code resourceName} is {@code null}
-     * @throws IllegalArgumentException if the resource does not exist in the plugin JAR
-     * @throws RuntimeException if loading or registration fails
+     * @since 1.1.0
      */
-    public @NotNull YamlConfig getInternal(@NotNull String resourceName) {
-
-        Objects.requireNonNull(resourceName, "resourceName");
-
-        // Validate resource exists in JAR
-        if (plugin.getResource(resourceName) == null) {
-            throw new IllegalArgumentException(
-                    "Resource not found in plugin JAR: " + resourceName
-            );
-        }
-
-        File file = new File(plugin.getDataFolder(), resourceName);
-
-        // Copy if missing
-        if (!file.exists()) {
-            plugin.saveResource(resourceName, false);
-        }
-
-        return getOrLoad(file);
+    public @NotNull Optional<Integer> getInt(@NotNull String path) {
+        return config.contains(path)
+                ? Optional.of(config.getInt(path))
+                : Optional.empty();
     }
 
     /**
-     * Explicitly loads a configuration file and registers it with the watcher.
+     * Returns a boolean value at the given path.
      *
-     * <p>This method always attempts to load the file regardless of its current
-     * registration state.</p>
+     * <p>This method avoids Bukkit's implicit default value ({@code false})
+     * by checking for path existence first.</p>
      *
-     * @param file configuration file, must not be {@code null}
-     * @return loaded {@link YamlConfig} snapshot, never {@code null}
+     * @param path configuration path, must not be {@code null}
+     * @return optional containing the value, or empty if not present
      *
-     * @throws NullPointerException if {@code file} is {@code null}
-     * @throws RuntimeException if loading or registration fails
+     * @since 1.1.0
      */
-    public @NotNull YamlConfig load(@NotNull File file) {
-        return loadInternal(file);
+    public @NotNull Optional<Boolean> getBoolean(@NotNull String path) {
+        return config.contains(path)
+                ? Optional.of(config.getBoolean(path))
+                : Optional.empty();
     }
 
     /**
-     * Ensures the configuration file exists, creating parent directories if needed,
-     * and then loads and registers it.
+     * Returns a double value at the given path.
      *
-     * @param file configuration file, must not be {@code null}
-     * @return loaded {@link YamlConfig} snapshot, never {@code null}
+     * @param path configuration path, must not be {@code null}
+     * @return optional containing the value, or empty if not present
      *
-     * @throws NullPointerException if {@code file} is {@code null}
-     * @throws RuntimeException if loading or registration fails
+     * @since 1.1.0
      */
-    public @NotNull YamlConfig createIfMissing(@NotNull File file) {
-        if (!file.exists()) {
-            ensureParentDirectories(file);
-        }
-        return loadInternal(file);
+    public @NotNull Optional<Double> getDouble(@NotNull String path) {
+        return config.contains(path)
+                ? Optional.of(config.getDouble(path))
+                : Optional.empty();
     }
 
     /**
-     * Attempts to load a configuration file safely.
+     * Returns a float value at the given path.
      *
-     * <p>This method does not throw exceptions. Instead, it returns a structured
-     * {@link ConfigLoadResult} describing the outcome.</p>
+     * <p>This method internally reads a double value and casts it to float,
+     * as Bukkit does not provide a native float accessor.</p>
      *
-     * @param file configuration file, must not be {@code null}
-     * @return result object containing status, configuration, or error
+     * @param path configuration path, must not be {@code null}
+     * @return optional containing the value, or empty if not present
+     *
+     * @since 1.1.0
      */
-    public @NotNull ConfigLoadResult tryLoad(@NotNull File file) {
-        try {
-            YamlConfig config = loadInternal(file);
-            return new ConfigLoadResult(ConfigLoadStatus.LOADED, config, null);
-        } catch (Exception e) {
-            return new ConfigLoadResult(ConfigLoadStatus.IO_ERROR, null, e);
-        }
+    public @NotNull Optional<Float> getFloat(@NotNull String path) {
+        return config.contains(path)
+                ? Optional.of((float) config.getDouble(path))
+                : Optional.empty();
     }
 
     /**
-     * Attempts to create and load a configuration file safely.
+     * Returns a list of strings at the given path.
      *
-     * <p>If the file already exists, the existing configuration is returned.</p>
+     * @param path configuration path, must not be {@code null}
+     * @return optional containing the list, or empty if not present
      *
-     * @param file configuration file, must not be {@code null}
-     * @return result object describing the outcome
+     * @since 1.1.0
      */
-    public @NotNull ConfigLoadResult tryCreate(@NotNull File file) {
-
-        if (file.exists()) {
-            try {
-                return new ConfigLoadResult(
-                        ConfigLoadStatus.ALREADY_EXISTS,
-                        get(file),
-                        null
-                );
-            } catch (Exception e) {
-                return new ConfigLoadResult(ConfigLoadStatus.IO_ERROR, null, e);
-            }
-        }
-
-        try {
-            ensureParentDirectories(file);
-            YamlConfig config = loadInternal(file);
-            return new ConfigLoadResult(ConfigLoadStatus.CREATED, config, null);
-        } catch (Exception e) {
-            return new ConfigLoadResult(ConfigLoadStatus.IO_ERROR, null, e);
-        }
+    public @NotNull Optional<List<String>> getStringList(@NotNull String path) {
+        return config.contains(path)
+                ? Optional.of(config.getStringList(path))
+                : Optional.empty();
     }
 
     /**
-     * Stops tracking the specified configuration file.
+     * Returns a raw object at the given path.
      *
-     * @param file configuration file, must not be {@code null}
+     * @param path configuration path, must not be {@code null}
+     * @return optional containing the value, or empty if not present
+     *
+     * @since 1.1.0
      */
-    public void unload(@NotNull File file) {
-        watcher.unregister(normalize(file.toPath()));
+    public @NotNull Optional<Object> get(@NotNull String path) {
+        return Optional.ofNullable(config.get(path));
     }
 
     /**
-     * Returns all currently tracked configuration snapshots.
+     * Returns a string value or a default if missing.
      *
-     * @return collection of configurations, never {@code null}
+     * @param path configuration path, must not be {@code null}
+     * @param def fallback value, must not be {@code null}
+     * @return resolved value, never {@code null}
+     *
+     * @since 1.1.0
      */
-    public @NotNull Collection<YamlConfig> getAll() {
-        return watcher.getAll();
+    public @NotNull String getStringOrDefault(@NotNull String path, @NotNull String def) {
+        String value = config.getString(path);
+        return value != null ? value : def;
     }
 
     /**
-     * Internal method responsible for loading and registering configurations.
+     * Returns an integer value or a default.
      *
-     * @param file configuration file, must not be {@code null}
-     * @return loaded {@link YamlConfig} snapshot
+     * @param path configuration path, must not be {@code null}
+     * @param def fallback value
+     * @return resolved value
+     *
+     * @since 1.1.0
      */
-    private @NotNull YamlConfig loadInternal(@NotNull File file) {
-
-        ensureParentDirectories(file);
-
-        YamlConfig config = new YamlConfig(
-                file,
-                YamlConfiguration.loadConfiguration(file)
-        );
-
-        try {
-            watcher.register(config);
-        } catch (IOException e) {
-            throw new RuntimeException("Failed to register watcher for " + file, e);
-        }
-
-        return config;
+    public int getIntOrDefault(@NotNull String path, int def) {
+        return config.getInt(path, def);
     }
 
     /**
-     * Ensures that the parent directories of the file exist.
+     * Returns a boolean value or a default.
      *
-     * @param file file whose parent directories should be verified
+     * @param path configuration path, must not be {@code null}
+     * @param def fallback value
+     * @return resolved value
      *
-     * @throws IllegalStateException if directory creation fails
+     * @since 1.1.0
      */
-    private void ensureParentDirectories(@NotNull File file) {
-
-        File parent = file.getParentFile();
-
-        if (parent != null && !parent.exists()) {
-            if (!parent.mkdirs() && !parent.exists()) {
-                throw new IllegalStateException("Failed to create directories: " + parent);
-            }
-        }
+    public boolean getBooleanOrDefault(@NotNull String path, boolean def) {
+        return config.getBoolean(path, def);
     }
 
     /**
-     * Normalizes a path to ensure consistent identity.
+     * Returns a double value or a default.
      *
-     * @param path raw path, must not be {@code null}
-     * @return normalized absolute path
+     * @param path configuration path, must not be {@code null}
+     * @param def fallback value
+     * @return resolved value
+     *
+     * @since 1.1.0
      */
-    private static @NotNull Path normalize(@NotNull Path path) {
-        return path.toAbsolutePath().normalize();
+    public double getDoubleOrDefault(@NotNull String path, double def) {
+        return config.getDouble(path, def);
+    }
+
+    /**
+     * Returns a float value or a default.
+     *
+     * @param path configuration path, must not be {@code null}
+     * @param def fallback value
+     * @return resolved value
+     *
+     * @since 1.1.0
+     */
+    public float getFloatOrDefault(@NotNull String path, float def) {
+        return (float) config.getDouble(path, def);
+    }
+
+    /**
+     * Checks whether a value exists at the given path.
+     *
+     * @param path configuration path, must not be {@code null}
+     * @return {@code true} if present, otherwise {@code false}
+     *
+     * @since 1.1.0
+     */
+    public boolean has(@NotNull String path) {
+        return config.contains(path);
     }
 }

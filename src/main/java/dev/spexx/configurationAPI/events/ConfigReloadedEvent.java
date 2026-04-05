@@ -23,6 +23,13 @@ import org.jetbrains.annotations.NotNull;
  * <p>All fields are immutable and represent a complete snapshot of the reload
  * operation at the time the event was created.</p>
  *
+ * <h2>Event Guarantees</h2>
+ * <ul>
+ *     <li>Both {@link #getOldConfig()} and {@link #getNewConfig()} are non-null</li>
+ *     <li>Checksums represent valid SHA-256 hashes of the file contents</li>
+ *     <li>The event is only fired when a real content change is detected</li>
+ * </ul>
+ *
  * @apiNote
  * Consumers should treat {@link YamlConfig} instances as read-only snapshots.
  * To obtain the most recent configuration state, query the managing component
@@ -34,31 +41,43 @@ public final class ConfigReloadedEvent extends Event {
 
     /**
      * Static handler list required by the Bukkit event system.
+     *
+     * @since 1.0.5
      */
     private static final HandlerList HANDLERS = new HandlerList();
 
     /**
      * Previous configuration snapshot before reload.
+     *
+     * @since 1.0.5
      */
     private final @NotNull YamlConfig oldConfig;
 
     /**
      * Updated configuration snapshot after reload.
+     *
+     * @since 1.0.5
      */
     private final @NotNull YamlConfig newConfig;
 
     /**
      * SHA-256 checksum of the configuration file before reload.
+     *
+     * @since 1.0.5
      */
     private final @NotNull String oldChecksum;
 
     /**
      * SHA-256 checksum of the configuration file after reload.
+     *
+     * @since 1.0.5
      */
     private final @NotNull String newChecksum;
 
     /**
      * Time required to reload the configuration, measured in milliseconds.
+     *
+     * @since 1.0.5
      */
     private final int reloadTimeMs;
 
@@ -68,11 +87,18 @@ public final class ConfigReloadedEvent extends Event {
      * <p>This constructor is typically invoked internally by the configuration
      * watcher after detecting and applying a file change.</p>
      *
+     * <p>All parameters are required and must represent a valid transition
+     * from one configuration state to another.</p>
+     *
      * @param oldConfig previous configuration snapshot, must not be {@code null}
      * @param newConfig updated configuration snapshot, must not be {@code null}
      * @param oldChecksum checksum of the file before reload, must not be {@code null}
      * @param newChecksum checksum of the file after reload, must not be {@code null}
      * @param reloadTimeMs time taken to reload the configuration in milliseconds
+     *
+     * @throws NullPointerException if any non-null parameter is {@code null}
+     *
+     * @since 1.0.5
      */
     public ConfigReloadedEvent(
             @NotNull YamlConfig oldConfig,
@@ -95,6 +121,8 @@ public final class ConfigReloadedEvent extends Event {
      * was applied.</p>
      *
      * @return previous configuration snapshot, never {@code null}
+     *
+     * @since 1.0.5
      */
     public @NotNull YamlConfig getOldConfig() {
         return oldConfig;
@@ -107,6 +135,8 @@ public final class ConfigReloadedEvent extends Event {
      * contents of the configuration file.</p>
      *
      * @return updated configuration snapshot, never {@code null}
+     *
+     * @since 1.0.5
      */
     public @NotNull YamlConfig getNewConfig() {
         return newConfig;
@@ -116,6 +146,8 @@ public final class ConfigReloadedEvent extends Event {
      * Returns the checksum of the configuration file before reload.
      *
      * @return previous SHA-256 checksum, never {@code null}
+     *
+     * @since 1.0.5
      */
     public @NotNull String getOldChecksum() {
         return oldChecksum;
@@ -125,6 +157,8 @@ public final class ConfigReloadedEvent extends Event {
      * Returns the checksum of the configuration file after reload.
      *
      * @return new SHA-256 checksum, never {@code null}
+     *
+     * @since 1.0.5
      */
     public @NotNull String getNewChecksum() {
         return newChecksum;
@@ -138,6 +172,8 @@ public final class ConfigReloadedEvent extends Event {
      * configuration snapshot.</p>
      *
      * @return reload duration in milliseconds
+     *
+     * @since 1.0.5
      */
     public int getReloadTimeMs() {
         return reloadTimeMs;
@@ -147,6 +183,8 @@ public final class ConfigReloadedEvent extends Event {
      * Returns the handler list for this event instance.
      *
      * @return handler list, never {@code null}
+     *
+     * @since 1.0.5
      */
     @Override
     public @NotNull HandlerList getHandlers() {
@@ -157,6 +195,8 @@ public final class ConfigReloadedEvent extends Event {
      * Returns the static handler list required by the Bukkit event system.
      *
      * @return static handler list, never {@code null}
+     *
+     * @since 1.0.5
      */
     public static @NotNull HandlerList getHandlerList() {
         return HANDLERS;
