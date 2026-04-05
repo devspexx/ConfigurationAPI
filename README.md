@@ -1,5 +1,5 @@
 ![Build](https://github.com/devspexx/ConfigurationAPI/actions/workflows/maven.yml/badge.svg)
-![Version](https://img.shields.io/badge/version-1.2.0-green)
+[![CodeFactor](https://www.codefactor.io/repository/github/devspexx/configurationapi/badge)](https://www.codefactor.io/repository/github/devspexx/configurationapi)
 
 ## ConfigurationAPI
 
