@@ -263,17 +263,14 @@ public final class GlobalConfigWatcher {
             int timeMs = (int) ((System.nanoTime() - start) / 1_000_000);
 
             if (oldConfig != null && oldChecksum != null) {
-                plugin.getServer().getScheduler().runTask(plugin, () ->
-                        plugin.getServer().getPluginManager().callEvent(
-                                new ConfigReloadedEvent(
-                                        oldConfig,
-                                        newConfig,
-                                        oldChecksum,
-                                        newChecksum,
-                                        timeMs
-                                )
-                        )
-                );
+
+                var scheduler = plugin.getServer().getScheduler();
+                var pluginManager = plugin.getServer().getPluginManager();
+
+                scheduler.runTask(plugin, () ->
+                        pluginManager.callEvent(new ConfigReloadedEvent(
+                                oldConfig, newConfig, oldChecksum, newChecksum, timeMs
+                )));
             }
 
             plugin.getLogger().info("[ConfigWatcher] Reloaded: " + file.getName());
