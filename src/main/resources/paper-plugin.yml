@@ -1,6 +1,6 @@
 name: ConfigurationAPI
 description: $description
-version: '1.0.6'
+version: '1.1'
 
 main: dev.spexx.configurationAPI.ConfigurationAPI
 api-version: '1.21.11'
