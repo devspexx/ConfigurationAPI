@@ -43,5 +43,5 @@ jobs:
           path: target/*.jar
 
       # Optional: GitHub security / dependency tracking
-      - name: Update dependency graph
-        uses: advanced-security/maven-dependency-submission-action@v3
+      # - name: Update dependency graph
+      #  uses: advanced-security/maven-dependency-submission-action@v3
