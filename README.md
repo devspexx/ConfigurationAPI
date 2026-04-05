@@ -1,3 +1,8 @@
+![Build](https://github.com/devspexx/ConfigurationAPI/actions/workflows/maven.yml/badge.svg)
+![GitHub release](https://img.shields.io/github/v/release/devspexx/ConfigurationAPI)
+![Code Size](https://img.shields.io/github/languages/code-size/devspexx/ConfigurationAPI)
+![Repo Size](https://img.shields.io/github/repo-size/devspexx/ConfigurationAPI)
+
 ## ConfigurationAPI
 
 A lightweight, high-performance YAML configuration API for Paper/Spigot plugins, featuring automatic file watching, atomic reloads, and a clean event-driven design.
