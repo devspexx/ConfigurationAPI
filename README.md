@@ -1,4 +1,4 @@
-### ConfigurationAPI
+## ConfigurationAPI
 
 A lightweight, high-performance YAML configuration API for Paper/Spigot plugins, featuring automatic file watching, atomic reloads, and a clean event-driven design.
 
