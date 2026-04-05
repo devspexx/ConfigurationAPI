@@ -1,0 +1,47 @@
+# This workflow will build a Java project with Maven, and cache/restore any dependencies to improve the workflow execution time
+# For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-java-with-maven
+
+# This workflow uses actions that are not certified by GitHub.
+# They are provided by a third-party and are governed by
+# separate terms of service, privacy policy, and support
+# documentation.
+
+name: Java CI with Maven
+
+on:
+  push:
+    branches: [ "master" ]
+  pull_request:
+    branches: [ "master" ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      # Checkout repo
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # Setup Java (IMPORTANT FIX)
+      - name: Set up JDK 25
+        uses: actions/setup-java@v4
+        with:
+          java-version: '25'
+          distribution: 'temurin'
+          cache: maven
+
+      # Build project
+      - name: Build with Maven
+        run: mvn -B clean package
+
+      # Upload JAR
+      - name: Upload JAR artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ConfigurationAPI
+          path: target/*.jar
+
+      # Optional: GitHub security / dependency tracking
+      - name: Update dependency graph
+        uses: advanced-security/maven-dependency-submission-action@v3
