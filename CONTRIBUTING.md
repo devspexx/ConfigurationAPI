@@ -68,5 +68,6 @@ mvn clean package
 #### Questions
 If you're unsure about something, open an issue first — happy to help.
 
+---
 
 ### Thanks for contributing ❤️
