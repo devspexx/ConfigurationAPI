@@ -193,8 +193,7 @@ public final class GlobalConfigWatcher {
                     }
 
                     lastReload.put(path, now);
-
-                    handle(path, event.kind());
+                    handleFileEvent(path, event.kind());
                 }
 
                 if (!key.reset()) {
@@ -218,9 +217,13 @@ public final class GlobalConfigWatcher {
      * @param path affected file path, must not be {@code null}
      * @param kind event type, must not be {@code null}
      */
-    private void handle(@NotNull Path path, WatchEvent.@NotNull Kind<?> kind) {
+    private void handleFileEvent(@NotNull Path path, WatchEvent.@NotNull Kind<?> kind) {
 
         File file = path.toFile();
+
+        if (!configs.containsKey(path)) {
+            return;
+        }
 
         // Handle deletion
         if (kind == ENTRY_DELETE) {
