@@ -1,95 +1,85 @@
 package dev.spexx.configurationAPI.manager;
 
 import dev.spexx.configurationAPI.config.YamlConfig;
-import dev.spexx.configurationAPI.watcher.YamlConfigWatcher;
+import dev.spexx.configurationAPI.watcher.GlobalConfigWatcher;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.io.File;
+import java.io.IOException;
 import java.nio.file.Path;
 import java.util.Collection;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.Objects;
 
 /**
- * Central registry and lifecycle manager for {@link YamlConfig} instances.
+ * Central access point for configuration files managed by the system.
  *
- * <p>This class is responsible for loading, caching, reloading, and unloading
- * configuration files. Configurations are indexed by their normalized
- * {@link Path}, ensuring consistent identity across different environments.</p>
+ * <p>This class is responsible for:
+ * <ul>
+ *     <li>Initial loading of configuration files</li>
+ *     <li>Registering configurations with the global watcher</li>
+ *     <li>Providing access to the latest configuration snapshots</li>
+ * </ul>
  *
- * <p>The manager provides thread-safe access to configuration snapshots and
- * coordinates integration with {@link YamlConfigWatcher} for automatic reloads.</p>
+ * <h2>Architecture</h2>
+ * <p>The {@link GlobalConfigWatcher} is the single source of truth for all
+ * configuration state. This class does not maintain its own cache.</p>
+ *
+ * <p>All calls to {@link #get(File)} delegate directly to the watcher,
+ * ensuring that consumers always receive the most up-to-date configuration.</p>
+ *
+ * <h2>Thread Safety</h2>
+ * <p>This class is thread-safe. The underlying watcher uses concurrent
+ * data structures and atomic replacement of {@link YamlConfig} instances.</p>
  *
  * @apiNote
- * This class is designed for concurrent access. Consumers may safely retrieve
- * configuration instances from multiple threads without additional synchronization.
- * Returned {@link YamlConfig} instances are immutable snapshots and may become
- * outdated after reload operations.
+ * {@link YamlConfig} instances are immutable snapshots. Consumers should
+ * retrieve them on demand rather than caching references long-term.
  *
- * @implSpec
- * Configuration instances are replaced atomically using
- * {@link ConcurrentHashMap#computeIfPresent(Object, java.util.function.BiFunction)}.
- * This guarantees that readers either observe the old or the new configuration,
- * but never a partially updated state.
- *
- * <p>Each loaded configuration is associated with a {@link YamlConfigWatcher}
- * that monitors file system changes and triggers reload operations via a callback.</p>
- *
- * @implNote
- * Watchers are created per configuration file and managed alongside the cached
- * configuration instances. When a configuration is unloaded, its associated
- * watcher is stopped and removed to prevent resource leaks.
- *
- * @since 1.0.0
+ * @since 1.0.5
  */
 public final class ConfigManager {
 
-    /**
-     * Owning plugin instance used for scheduling and logging.
-     *
-     * @since 1.0.0
-     */
     private final @NotNull JavaPlugin plugin;
+    private final @NotNull GlobalConfigWatcher watcher;
 
     /**
-     * Cache of loaded configurations indexed by normalized path.
+     * Creates a new {@code ConfigManager}.
      *
-     * @since 1.0.0
-     */
-    private final ConcurrentHashMap<Path, YamlConfig> configs = new ConcurrentHashMap<>();
-
-    /**
-     * Active watchers associated with loaded configurations.
+     * <p>This initializes and starts the {@link GlobalConfigWatcher}.</p>
      *
-     * @since 1.0.0
-     */
-    private final ConcurrentHashMap<Path, YamlConfigWatcher> watchers = new ConcurrentHashMap<>();
-
-    /**
-     * Constructs a new {@code ConfigManager}.
+     * @param plugin owning plugin instance, must not be {@code null}
      *
-     * @param plugin the owning plugin instance, must not be {@code null}
-     *
-     * @since 1.0.0
+     * @throws RuntimeException if watcher initialization fails
      */
     public ConfigManager(@NotNull JavaPlugin plugin) {
-        this.plugin = plugin;
+        this.plugin = Objects.requireNonNull(plugin, "plugin");
+
+        try {
+            this.watcher = new GlobalConfigWatcher(plugin);
+            this.watcher.start();
+        } catch (IOException e) {
+            throw new RuntimeException("Failed to initialize GlobalConfigWatcher", e);
+        }
     }
 
     /**
-     * Returns a loaded configuration for the given file.
+     * Returns the latest configuration snapshot for the given file.
      *
-     * @param file the configuration file, must not be {@code null}
-     * @return the corresponding configuration snapshot, never {@code null}
+     * <p>The configuration must have been previously loaded using
+     * {@link #getOrLoad(File)} or {@link #getOrLoadResource(String)}.</p>
+     *
+     * @param file configuration file, must not be {@code null}
+     * @return latest {@link YamlConfig} snapshot, never {@code null}
+     *
      * @throws IllegalStateException if the configuration is not loaded
-     *
-     * @since 1.0.0
      */
     public @NotNull YamlConfig get(@NotNull File file) {
         Path path = normalize(file.toPath());
-        YamlConfig config = configs.get(path);
 
+        YamlConfig config = watcher.get(path);
         if (config == null) {
             throw new IllegalStateException("Config not loaded: " + path);
         }
@@ -98,47 +88,36 @@ public final class ConfigManager {
     }
 
     /**
-     * Returns an existing configuration or loads it if not already present.
+     * Returns an existing configuration or loads it if not already tracked.
      *
-     * @param file the configuration file, must not be {@code null}
-     * @return the existing or newly loaded configuration snapshot, never {@code null}
+     * <p>If the configuration is not already registered, it is:
+     * <ol>
+     *     <li>Loaded from disk</li>
+     *     <li>Registered with the watcher</li>
+     * </ol>
      *
-     * @since 1.0.0
+     * @param file configuration file, must not be {@code null}
+     * @return latest {@link YamlConfig} snapshot
      */
     public @NotNull YamlConfig getOrLoad(@NotNull File file) {
         Path path = normalize(file.toPath());
-        return configs.computeIfAbsent(path, p -> load(file));
+
+        YamlConfig existing = watcher.get(path);
+        if (existing != null) {
+            return existing;
+        }
+
+        return load(file);
     }
 
     /**
-     * Loads a configuration file from the plugin's bundled resources,
-     * copying it to the plugin data folder if it does not already exist.
+     * Loads a configuration file from plugin resources if necessary.
      *
-     * <p>The resource is resolved from the plugin JAR and written to the
-     * data folder using {@link JavaPlugin#saveResource(String, boolean)}.
-     * If the file already exists, it is not overwritten.</p>
+     * <p>If the file does not exist in the plugin data folder, it is copied
+     * from the plugin JAR. The file is then loaded and registered.</p>
      *
-     * <p>After ensuring the file exists on disk, it is loaded and managed
-     * as a regular configuration via {@link #getOrLoad(File)}.</p>
-     *
-     * @param name the resource name (for example, {@code "config.yml"}), must not be {@code null}
-     * @return the loaded configuration snapshot, never {@code null}
-     *
-     * @apiNote
-     * This method is intended for default configuration files packaged with
-     * the plugin. The resource must exist within the plugin JAR under the
-     * same path.
-     *
-     * @implSpec
-     * The resource is copied only if the target file does not already exist.
-     * Existing files are preserved to avoid overwriting user modifications.
-     *
-     * @implNote
-     * This method bridges bundled resources and the configuration management
-     * system by ensuring that all managed configurations operate on real
-     * files within the plugin data folder.
-     *
-     * @since 1.0.0
+     * @param name resource name (for example {@code "config.yml"}), must not be {@code null}
+     * @return latest {@link YamlConfig} snapshot
      */
     public @NotNull YamlConfig getOrLoadResource(@NotNull String name) {
         plugin.saveResource(name, false);
@@ -146,117 +125,82 @@ public final class ConfigManager {
     }
 
     /**
-     * Reloads the specified configuration file.
+     * Stops tracking the specified configuration file.
      *
-     * <p>A new {@link YamlConfig} instance is created and atomically replaces
-     * the previous instance in the cache.</p>
+     * <p>This removes the configuration from the watcher. If the file still
+     * exists, it may be reloaded again if explicitly registered.</p>
      *
-     * @param file the configuration file, must not be {@code null}
-     *
-     * @since 1.0.0
-     */
-    public void reload(@NotNull File file) {
-        Path path = normalize(file.toPath());
-
-        configs.computeIfPresent(path, (p, oldConfig) -> {
-
-            YamlConfig newConfig = new YamlConfig(
-                    file,
-                    YamlConfiguration.loadConfiguration(file)
-            );
-
-            YamlConfigWatcher watcher = watchers.get(path);
-
-            if (watcher != null) {
-                watcher.updateConfig(newConfig);
-                watcher.updateChecksum();
-            }
-
-            return newConfig;
-        });
-    }
-
-    /**
-     * Unloads the specified configuration and stops its associated watcher.
-     *
-     * @param file the configuration file, must not be {@code null}
-     *
-     * @since 1.0.0
+     * @param file configuration file, must not be {@code null}
      */
     public void unload(@NotNull File file) {
         Path path = normalize(file.toPath());
-
-        configs.remove(path);
-
-        YamlConfigWatcher watcher = watchers.remove(path);
-        if (watcher != null) {
-            watcher.stop();
-        }
+        watcher.unregister(path);
     }
 
     /**
-     * Returns all currently loaded configuration snapshots.
+     * Returns all currently tracked configuration snapshots.
      *
      * @return collection of configurations, never {@code null}
-     *
-     * @since 1.0.0
      */
     public @NotNull Collection<YamlConfig> getAll() {
-        return configs.values();
+        return watcher.getAll();
     }
 
     /**
-     * Loads a configuration file and initializes its watcher.
+     * Loads a configuration file and registers it with the watcher.
      *
-     * <p>If the file does not exist, parent directories are created as needed.</p>
+     * @param file configuration file, must not be {@code null}
+     * @return loaded {@link YamlConfig} snapshot
      *
-     * @param file the configuration file, must not be {@code null}
-     * @return the loaded configuration snapshot, never {@code null}
-     *
-     * @since 1.0.0
+     * @throws RuntimeException if watcher registration fails
      */
     private @NotNull YamlConfig load(@NotNull File file) {
 
-        Path path = normalize(file.toPath());
+        ensureFileExists(file);
 
-        if (!file.exists()) {
-            File parent = file.getParentFile();
-
-            if (parent != null && !parent.exists()) {
-                if (!parent.mkdirs() && !parent.exists()) {
-                    throw new IllegalStateException("Failed to create directories: " + parent);
-                }
-            }
-        }
-
-        YamlConfig config = new YamlConfig(file, YamlConfiguration.loadConfiguration(file));
-
-        YamlConfigWatcher watcher = new YamlConfigWatcher(
-                plugin,
-                config,
-                () -> reload(file)
+        YamlConfig config = new YamlConfig(
+                file,
+                YamlConfiguration.loadConfiguration(file)
         );
 
         try {
-            watcher.start();
-        } catch (Exception e) {
-            throw new RuntimeException("Failed to start watcher", e);
+            watcher.register(config);
+        } catch (IOException e) {
+            throw new RuntimeException("Failed to register watcher for " + file, e);
         }
-
-        watchers.put(path, watcher);
 
         return config;
     }
 
     /**
+     * Ensures that the parent directories of the file exist.
+     *
+     * @param file file to verify, must not be {@code null}
+     *
+     * @throws IllegalStateException if directory creation fails
+     */
+    private void ensureFileExists(@NotNull File file) {
+
+        if (file.exists()) {
+            return;
+        }
+
+        File parent = file.getParentFile();
+
+        if (parent != null && !parent.exists()) {
+            if (!parent.mkdirs() && !parent.exists()) {
+                throw new IllegalStateException("Failed to create directories: " + parent);
+            }
+        }
+    }
+
+    /**
      * Normalizes a path to ensure consistent identity.
      *
-     * @param path the raw path, must not be {@code null}
-     * @return normalized absolute path, never {@code null}
-     *
-     * @since 1.0.0
+     * @param path raw path, must not be {@code null}
+     * @return normalized absolute path
      */
-    private @NotNull Path normalize(@NotNull Path path) {
+    private static @NotNull Path normalize(@NotNull Path path) {
         return path.toAbsolutePath().normalize();
     }
 }

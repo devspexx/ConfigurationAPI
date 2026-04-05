@@ -1,6 +1,5 @@
 package dev.spexx.configurationAPI.config;
 
-import dev.spexx.configurationAPI.properties.FileProperties;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.jetbrains.annotations.NotNull;
 
@@ -13,26 +12,33 @@ import java.io.File;
  * <ul>
  *     <li>The underlying {@link File} on disk</li>
  *     <li>The parsed {@link FileConfiguration} instance</li>
- *     <li>Associated {@link FileProperties} metadata</li>
  * </ul>
  *
- * <p>Instances represent a point-in-time view of a configuration and are intended
- * to be treated as read-only. New instances are created during reload operations
- * and atomically swapped by the managing component.</p>
+ * <p>Each instance represents a point-in-time view of a configuration file.
+ * When the file is reloaded, a new {@code YamlConfig} instance is created
+ * and atomically replaces the previous instance.</p>
+ *
+ * <h2>Immutability</h2>
+ * <p>This class is immutable. All fields are {@code final} and no mutator
+ * methods are provided. This ensures thread-safe access without requiring
+ * synchronization.</p>
+ *
+ * <h2>Usage</h2>
+ * <p>Instances should be treated as read-only snapshots. Consumers should not
+ * cache instances long-term if they require access to the most up-to-date
+ * configuration state.</p>
  *
  * @apiNote
- * Consumers should avoid holding long-lived references if they require access to
- * the most up-to-date configuration. Instead, they should retrieve the current
- * instance from the managing component when needed.
+ * To obtain the latest configuration, retrieve a new instance from the managing
+ * component instead of reusing previously obtained references.
  *
  * @implSpec
- * This class is immutable. All fields are {@code final}, and no mutator methods
- * are provided. Thread-safety is achieved through immutability and atomic
- * replacement at a higher level.
+ * Thread-safety is achieved through immutability and atomic replacement of
+ * instances at a higher level (for example, by the configuration manager).
  *
  * @implNote
- * Atomic replacement of instances ensures that readers never observe partially
- * updated configuration state and do not require synchronization.
+ * The underlying {@link FileConfiguration} instance is assumed to be used in a
+ * read-only manner. Modifying it directly may lead to inconsistent behavior.
  *
  * @since 1.0.0
  */
@@ -40,72 +46,53 @@ public final class YamlConfig {
 
     /**
      * The underlying configuration file on disk.
-     *
-     * @since 1.0.0
      */
-    private final File file;
-
-    /**
-     * Metadata describing the underlying file.
-     *
-     * @since 1.0.0
-     */
-    private final FileProperties properties;
+    private final @NotNull File file;
 
     /**
      * Parsed configuration snapshot.
-     *
-     * @since 1.0.0
      */
-    private final FileConfiguration config;
+    private final @NotNull FileConfiguration config;
 
     /**
-     * Constructs a new immutable {@code YamlConfig} instance.
+     * Constructs a new {@code YamlConfig} instance.
      *
-     * @param file   the configuration file, must not be {@code null}
+     * <p>The provided {@link FileConfiguration} is assumed to represent a fully
+     * parsed and valid snapshot of the given file.</p>
+     *
+     * @param file the configuration file, must not be {@code null}
      * @param config the parsed configuration snapshot, must not be {@code null}
-     *
-     * @since 1.0.0
      */
     public YamlConfig(
             @NotNull File file,
-            @NotNull FileConfiguration config) {
+            @NotNull FileConfiguration config
+    ) {
         this.file = file;
-        this.properties = new FileProperties(file);
         this.config = config;
     }
 
     /**
      * Returns the underlying configuration file.
      *
-     * @return the configuration file, never {@code null}
+     * <p>This refers to the physical file on disk from which this snapshot
+     * was created.</p>
      *
-     * @since 1.0.0
+     * @return the configuration file, never {@code null}
      */
     public @NotNull File file() {
         return file;
     }
 
     /**
-     * Returns metadata associated with this configuration file.
-     *
-     * @return file properties, never {@code null}
-     *
-     * @since 1.0.0
-     */
-    public @NotNull FileProperties properties() {
-        return properties;
-    }
-
-    /**
      * Returns the parsed configuration snapshot.
      *
-     * <p>The returned instance represents a stable view of the configuration
-     * at the time this {@code YamlConfig} was created.</p>
+     * <p>The returned {@link FileConfiguration} represents a stable, immutable
+     * view of the configuration at the time this {@code YamlConfig} instance
+     * was created.</p>
+     *
+     * <p>This object should be treated as read-only.</p>
      *
      * @return the configuration snapshot, never {@code null}
-     *
-     * @since 1.0.0
      */
     public @NotNull FileConfiguration config() {
         return config;
