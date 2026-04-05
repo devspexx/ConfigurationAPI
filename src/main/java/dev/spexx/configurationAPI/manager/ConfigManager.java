@@ -122,7 +122,7 @@ public final class ConfigManager {
      * <p>This method guarantees that the file exists by copying it from the
      * plugin JAR if missing.</p>
      *
-     * <h3>Behavior</h3>
+     * <p><b>Behavior:</b></p>
      * <ul>
      *     <li>Validates that the resource exists in the plugin JAR</li>
      *     <li>Copies the resource if the file does not exist</li>
