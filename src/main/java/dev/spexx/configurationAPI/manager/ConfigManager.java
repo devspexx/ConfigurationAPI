@@ -111,6 +111,45 @@ public final class ConfigManager {
     }
 
     /**
+     * Returns the latest configuration snapshot for a file located
+     * relative to the plugin's data folder.
+     *
+     * <p>This is a convenience method that resolves the provided path
+     * against {@link JavaPlugin#getDataFolder()}.</p>
+     *
+     * <p>Example usage:</p>
+     * <pre>
+     * YamlConfig config = manager.getByPath("configs/example.yml");
+     * </pre>
+     *
+     * @param path relative file path using forward slashes, must not be {@code null}
+     * @return latest {@link YamlConfig} snapshot
+     *
+     * @throws IllegalStateException if the configuration is not loaded
+     */
+    public @NotNull YamlConfig getByPath(@NotNull String path) {
+        File file = resolvePath(path);
+        return get(file);
+    }
+
+    /**
+     * Returns an existing configuration or loads it if not already tracked,
+     * using a path relative to the plugin's data folder.
+     *
+     * <p>Example usage:</p>
+     * <pre>
+     * YamlConfig config = manager.getOrLoadByPath("configs/example.yml");
+     * </pre>
+     *
+     * @param path relative file path using forward slashes, must not be {@code null}
+     * @return latest {@link YamlConfig} snapshot
+     */
+    public @NotNull YamlConfig getOrLoadByPath(@NotNull String path) {
+        File file = resolvePath(path);
+        return getOrLoad(file);
+    }
+
+    /**
      * Loads a configuration file from plugin resources if necessary.
      *
      * <p>If the file does not exist in the plugin data folder, it is copied
@@ -192,6 +231,24 @@ public final class ConfigManager {
                 throw new IllegalStateException("Failed to create directories: " + parent);
             }
         }
+    }
+
+    /**
+     * Resolves a relative path against the plugin's data folder.
+     *
+     * <p>Backslashes are normalized to forward slashes to ensure
+     * cross-platform compatibility.</p>
+     *
+     * @param path relative path, must not be {@code null}
+     * @return resolved file
+     */
+    private @NotNull File resolvePath(@NotNull String path) {
+        Objects.requireNonNull(path, "path");
+
+        // Normalize separators (Windows → Unix style)
+        String normalized = path.replace("\\", "/");
+
+        return new File(plugin.getDataFolder(), normalized);
     }
 
     /**
