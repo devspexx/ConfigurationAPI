@@ -4,6 +4,8 @@ import org.bukkit.configuration.file.FileConfiguration;
 import org.jetbrains.annotations.NotNull;
 
 import java.io.File;
+import java.util.List;
+import java.util.Optional;
 
 /**
  * Immutable snapshot of a YAML configuration file.
@@ -28,57 +30,14 @@ import java.io.File;
  * cache instances long-term if they require access to the most up-to-date
  * configuration state.</p>
  *
- * @apiNote
- * To obtain the latest configuration, retrieve a new instance from the managing
- * component instead of reusing previously obtained references.
- *
- * @implSpec
- * Thread-safety is achieved through immutability and atomic replacement of
- * instances at a higher level (for example, by the configuration manager).
- *
- * @implNote
- * The underlying {@link FileConfiguration} instance is assumed to be used in a
- * read-only manner. Modifying it directly may lead to inconsistent behavior.
- *
- * @since 1.0.0
+ * @since 1.1.0
  */
-public final class YamlConfig {
-
-    /**
-     * The underlying configuration file on disk.
-     */
-    private final @NotNull File file;
-
-    /**
-     * Parsed configuration snapshot.
-     */
-    private final @NotNull FileConfiguration config;
-
-    /**
-     * Constructs a new {@code YamlConfig} instance.
-     *
-     * <p>The provided {@link FileConfiguration} is assumed to represent a fully
-     * parsed and valid snapshot of the given file.</p>
-     *
-     * @param file the configuration file, must not be {@code null}
-     * @param config the parsed configuration snapshot, must not be {@code null}
-     */
-    public YamlConfig(
-            @NotNull File file,
-            @NotNull FileConfiguration config
-    ) {
-        this.file = file;
-        this.config = config;
-    }
+public record YamlConfig(@NotNull File file, @NotNull FileConfiguration config) {
 
     /**
      * Returns the underlying configuration file.
-     *
-     * <p>This refers to the physical file on disk from which this snapshot
-     * was created.</p>
-     *
-     * @return the configuration file, never {@code null}
      */
+    @Override
     public @NotNull File file() {
         return file;
     }
@@ -86,15 +45,117 @@ public final class YamlConfig {
     /**
      * Returns the parsed configuration snapshot.
      *
-     * <p>The returned {@link FileConfiguration} represents a stable, immutable
-     * view of the configuration at the time this {@code YamlConfig} instance
-     * was created.</p>
-     *
      * <p>This object should be treated as read-only.</p>
-     *
-     * @return the configuration snapshot, never {@code null}
      */
+    @Override
     public @NotNull FileConfiguration config() {
         return config;
+    }
+
+    // =========================================================
+    // Optional-based getters (safe access)
+    // =========================================================
+
+    /**
+     * Returns a string value at the given path.
+     *
+     * @param path config path
+     * @return Optional containing the value, or empty if not present
+     */
+    public @NotNull Optional<String> getString(@NotNull String path) {
+        return Optional.ofNullable(config.getString(path));
+    }
+
+    /**
+     * Returns an integer value at the given path.
+     *
+     * <p>This method avoids Bukkit's default fallback (0) by checking presence.</p>
+     */
+    public @NotNull Optional<Integer> getInt(@NotNull String path) {
+        return config.contains(path)
+                ? Optional.of(config.getInt(path))
+                : Optional.empty();
+    }
+
+    /**
+     * Returns a boolean value at the given path.
+     */
+    public @NotNull Optional<Boolean> getBoolean(@NotNull String path) {
+        return config.contains(path)
+                ? Optional.of(config.getBoolean(path))
+                : Optional.empty();
+    }
+
+    /**
+     * Returns a double value at the given path.
+     */
+    public @NotNull Optional<Double> getDouble(@NotNull String path) {
+        return config.contains(path)
+                ? Optional.of(config.getDouble(path))
+                : Optional.empty();
+    }
+
+    /**
+     * Returns a float value at the given path.
+     */
+    public @NotNull Optional<Float> getFloat(@NotNull String path) {
+        return config.contains(path)
+                ? Optional.of((float) config.getDouble(path))
+                : Optional.empty();
+    }
+
+    /**
+     * Returns a string list at the given path.
+     */
+    public @NotNull Optional<List<String>> getStringList(@NotNull String path) {
+        return config.contains(path)
+                ? Optional.of(config.getStringList(path))
+                : Optional.empty();
+    }
+
+    /**
+     * Returns a raw object at the given path.
+     */
+    public @NotNull Optional<Object> get(@NotNull String path) {
+        return Optional.ofNullable(config.get(path));
+    }
+
+    // =========================================================
+    // Default-based getters (most commonly used)
+    // =========================================================
+
+    public @NotNull String getStringOrDefault(@NotNull String path, @NotNull String def) {
+        String value = config.getString(path);
+        return value != null ? value : def;
+    }
+
+    public int getIntOrDefault(@NotNull String path, int def) {
+        return config.getInt(path, def);
+    }
+
+    public boolean getBooleanOrDefault(@NotNull String path, boolean def) {
+        return config.getBoolean(path, def);
+    }
+
+    public double getDoubleOrDefault(@NotNull String path, double def) {
+        return config.getDouble(path, def);
+    }
+
+    public float getFloatOrDefault(@NotNull String path, float def) {
+        return (float) config.getDouble(path, def);
+    }
+
+    // =========================================================
+    // Utility
+    // =========================================================
+
+    /**
+     * Checks whether a value exists at the given path.
+     *
+     * @param path config path
+     * @return true if present
+     */
+    public boolean has(@NotNull String path) {
+        return config.contains(path);
     }
 }
