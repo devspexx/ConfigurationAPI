@@ -25,7 +25,7 @@ A lightweight, high-performance YAML configuration API for Paper/Spigot plugins,
 <dependency>
     <groupId>dev.spexx</groupId>
     <artifactId>ConfigurationAPI</artifactId>
-    <version>1.0.5</version>
+    <version>1.2.0</version>
 </dependency>
 ```
 
