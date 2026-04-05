@@ -48,17 +48,16 @@ YamlConfig config = configManager.getOrLoad(file);
 ```java
 YamlConfig config = configManager.getOrLoadResource("config.yml");
 
-# Copies file from JAR if it does not exist
-# Automatically registers it with the watcher
-
+// Copies file from JAR if it does not exist
+// Automatically registers it with the watcher
 ```
 #### 3. Access configuration
 ```java
 YamlConfig config = configManager.get(file);
 String value = config.config().getString("path.to.value");
 
-# Always returns the latest snapshot
-# Safe for concurrent access
+// Always returns the latest snapshot
+// Safe for concurrent access
 ```
 
 #### 4. Automatic Reloads
@@ -77,16 +76,16 @@ When a file changes:
 public void onReload(ConfigReloadedEvent event) {
 
     plugin.getLogger().info(() ->
-        "[Config] Reloaded: " +
-        event.getNewConfig().file().getName() +
-        " (" + event.getReloadTimeMs() + "ms)"
+            "[Config] Reloaded: " +
+                    event.getNewConfig().file().getName() +
+                    " (" + event.getReloadTimeMs() + "ms)"
     );
 
     plugin.getLogger().info(() ->
-        "Checksum: " +
-        event.getOldChecksum() +
-        " -> " +
-        event.getNewChecksum()
+            "Checksum: " +
+                    event.getOldChecksum() +
+                    " -> " +
+                    event.getNewChecksum()
     );
 }
 ```
@@ -102,18 +101,18 @@ public void onReload(ConfigReloadedEvent event) {
 #### 7. Architecture Overview
 ```yml
 ConfigManager (API layer)
- ├── delegates to GlobalConfigWatcher
- └── provides access to configs
+├── delegates to GlobalConfigWatcher
+└── provides access to configs
 
 GlobalConfigWatcher (core)
- ├── owns config state (Map<Path, YamlConfig>)
- ├── owns checksums
- ├── handles file watching (WatchService)
- ├── performs reloads
- └── fires events
+├── owns config state (Map<Path, YamlConfig>)
+├── owns checksums
+├── handles file watching (WatchService)
+├── performs reloads
+└── fires events
 
 YamlConfig
- └── immutable snapshot of configuration
+└── immutable snapshot of configuration
 ```
 
 #### 8. Threading Model
