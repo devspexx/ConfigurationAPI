@@ -1,7 +1,5 @@
 ![Build](https://github.com/devspexx/ConfigurationAPI/actions/workflows/maven.yml/badge.svg)
-![GitHub release](https://img.shields.io/github/v/release/devspexx/ConfigurationAPI)
-![Code Size](https://img.shields.io/github/languages/code-size/devspexx/ConfigurationAPI)
-![Repo Size](https://img.shields.io/github/repo-size/devspexx/ConfigurationAPI)
+![Version](https://img.shields.io/badge/version-1.2.0-green)
 
 ## ConfigurationAPI
 
