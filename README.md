@@ -33,6 +33,21 @@ can do in the near future about that.
 </dependency>
 ```
 
+## Or use jitpack
+<repositories>
+    <repository>
+        <id>jitpack.io</id>
+        <url>https://jitpack.io</url>
+    </repository>
+</repositories>
+
+<dependency>
+    <groupId>com.github.devspexx</groupId>
+    <artifactId>ConfigurationAPI</artifactId>
+    <version>v1.3.0</version>
+</dependency>
+```
+
 ### Usage
 #### Full sample (with comments)
 
