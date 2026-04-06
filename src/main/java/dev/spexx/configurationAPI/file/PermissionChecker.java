@@ -5,32 +5,23 @@ import org.jetbrains.annotations.NotNull;
 import java.io.File;
 
 /**
- * Represents a utility for checking file system permissions on a given {@link File}.
+ * Utility for checking file system permissions on a {@link File}.
  *
- * <p>This record provides simple, direct access to the underlying file's permission
- * state using the standard {@link File} API. It allows consumers to verify whether
- * the file can be read, written to, or executed.</p>
+ * <p>Provides direct access to the file's readable, writable, and executable
+ * states using the standard {@link File} API.</p>
  *
- * <p>This is particularly useful when performing pre-validation before file operations
- * such as loading, saving, or executing configuration-related files.</p>
+ * <p>This is typically used for validation before performing file operations
+ * such as loading or saving configurations.</p>
  *
- * <h2>Thread Safety</h2>
- * <p>This class is immutable and thread-safe as it only holds a reference to a {@link File}
- * and performs no state mutation.</p>
- *
- * @param file the file whose permissions are to be checked, must not be {@code null}
- *
+ * @param file the file to check, must not be {@code null}
  * @since 1.3.0
  */
 public record PermissionChecker(@NotNull File file) {
 
     /**
-     * Checks whether the underlying file is readable.
+     * Returns whether the file is readable.
      *
-     * <p>This method delegates to {@link File#canRead()}.</p>
-     *
-     * @return {@code true} if the file can be read; {@code false} otherwise
-     *
+     * @return {@code true} if the file can be read, otherwise {@code false}
      * @since 1.3.0
      */
     public boolean canRead() {
@@ -38,12 +29,9 @@ public record PermissionChecker(@NotNull File file) {
     }
 
     /**
-     * Checks whether the underlying file is writable.
+     * Returns whether the file is writable.
      *
-     * <p>This method delegates to {@link File#canWrite()}.</p>
-     *
-     * @return {@code true} if the file can be written to; {@code false} otherwise
-     *
+     * @return {@code true} if the file can be written to, otherwise {@code false}
      * @since 1.3.0
      */
     public boolean canWrite() {
@@ -51,12 +39,9 @@ public record PermissionChecker(@NotNull File file) {
     }
 
     /**
-     * Checks whether the underlying file is executable.
+     * Returns whether the file is executable.
      *
-     * <p>This method delegates to {@link File#canExecute()}.</p>
-     *
-     * @return {@code true} if the file can be executed; {@code false} otherwise
-     *
+     * @return {@code true} if the file can be executed, otherwise {@code false}
      * @since 1.3.0
      */
     public boolean canExecute() {

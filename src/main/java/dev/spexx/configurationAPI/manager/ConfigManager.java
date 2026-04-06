@@ -16,11 +16,11 @@ import java.util.concurrent.ConcurrentHashMap;
 /**
  * Manages multiple {@link YamlConfig} instances.
  *
- * <p>This class provides a centralized registry for configuration files,
- * ensuring that each file is only managed once.</p>
+ * <p>Provides a centralized registry for configuration files, ensuring that each file
+ * is registered only once and accessed consistently.</p>
  *
- * <p>It also optionally integrates with {@link YamlConfigWatcher} to enable
- * automatic reloading when files are modified.</p>
+ * <p>Integrates with {@link YamlConfigWatcher} to optionally enable automatic reload
+ * when files are modified.</p>
  *
  * @since 1.3.0
  */
@@ -29,8 +29,8 @@ public class ConfigManager {
     /**
      * Stores registered configurations keyed by their absolute file path.
      *
-     * <p>Using {@link String} instead of {@link File} avoids inconsistencies caused by
-     * different {@link File} instances pointing to the same path.</p>
+     * <p>Using a {@link String} key avoids inconsistencies caused by different
+     * {@link File} instances referring to the same path.</p>
      *
      * @since 1.3.0
      */
@@ -41,27 +41,24 @@ public class ConfigManager {
     /**
      * Creates a new configuration manager.
      *
-     * <p>A {@link YamlConfigWatcher} is internally created and used for tracking changes.</p>
+     * <p>An internal {@link YamlConfigWatcher} is created for tracking file changes.</p>
      *
+     * @param javaPlugin the plugin instance used for scheduling and event dispatching
      * @throws ConfigException if watcher initialization fails
-     *
      * @since 1.3.0
      */
-    public ConfigManager() throws ConfigException {
-        this.watcher = new YamlConfigWatcher();
+    public ConfigManager(@NotNull JavaPlugin javaPlugin) throws ConfigException {
+        this.watcher = new YamlConfigWatcher(javaPlugin);
     }
 
     /**
      * Registers and initializes a configuration file.
      *
-     * <p>The file is created if it does not exist, then loaded and tracked by the watcher.</p>
+     * <p>If the file does not exist, it is created before loading.</p>
      *
      * @param file the configuration file
-     *
      * @return the managed {@link YamlConfig}
-     *
      * @throws ConfigException if the file is already registered or initialization fails
-     *
      * @since 1.3.0
      */
     public @NotNull YamlConfig register(@NotNull File file) throws ConfigException {
@@ -85,9 +82,10 @@ public class ConfigManager {
     }
 
     /**
-     * Registers a configuration file using a resource from the plugin JAR as default.
+     * Registers a configuration file using a resource from the plugin JAR.
      *
-     * <p>If the file does not exist, it is copied from the specified resource path.</p>
+     * <p>If the file does not exist, it is copied from the specified resource path
+     * before being loaded.</p>
      *
      * @param file         the target configuration file
      * @param resourcePath the path inside the plugin JAR
@@ -116,11 +114,22 @@ public class ConfigManager {
         configs.put(key, config);
 
         watcher.watch(config);
-
     }
 
-    private void copyResource(JavaPlugin plugin, String resourcePath, File target)
-            throws ConfigException {
+    /**
+     * Copies a resource from the plugin JAR to the specified file.
+     *
+     * <p>Parent directories are created if necessary.</p>
+     *
+     * @param plugin       the plugin providing the resource
+     * @param resourcePath the path inside the plugin JAR
+     * @param target       the target file location
+     * @throws ConfigException if the resource is missing or copy fails
+     * @since 1.3.0
+     */
+    private void copyResource(@NotNull JavaPlugin plugin,
+                              @NotNull String resourcePath,
+                              @NotNull File target) throws ConfigException {
 
         try (InputStream in = plugin.getResource(resourcePath)) {
 
@@ -145,11 +154,8 @@ public class ConfigManager {
      * <p>Lookup is performed using the file's absolute path to ensure consistency.</p>
      *
      * @param file the configuration file
-     *
      * @return the {@link YamlConfig}
-     *
      * @throws ConfigException if the config is not registered
-     *
      * @since 1.3.0
      */
     public @NotNull YamlConfig get(@NotNull File file) throws ConfigException {
@@ -168,7 +174,6 @@ public class ConfigManager {
      * Starts the internal watcher.
      *
      * @throws ConfigException if already running or fails
-     *
      * @since 1.3.0
      */
     public void start() throws ConfigException {

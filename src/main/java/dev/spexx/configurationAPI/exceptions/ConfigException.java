@@ -3,26 +3,14 @@ package dev.spexx.configurationAPI.exceptions;
 import org.jetbrains.annotations.NotNull;
 
 /**
- * Base exception for all configuration-related errors within the ConfigurationAPI.
+ * Base exception for all configuration-related errors.
  *
- * <p>This exception serves as the root of the configuration exception hierarchy.
- * All specific configuration exceptions (e.g. file errors, permission issues,
- * parsing failures) should extend this class.</p>
+ * <p>This exception acts as the root of the configuration exception hierarchy.
+ * All configuration-specific exceptions extend this class.</p>
  *
- * <p>It extends {@link RuntimeException}, meaning it is unchecked and does not
- * require explicit handling, but can still be caught if needed.</p>
- *
- * <h2>Design Goals</h2>
- * <ul>
- *     <li>Provide a unified exception type for all configuration errors</li>
- *     <li>Allow flexible subclassing for more specific failure scenarios</li>
- *     <li>Keep API usage clean without forcing excessive try-catch blocks</li>
- * </ul>
- *
- * <h2>Example</h2>
- * <pre>{@code
- * throw new ConfigException("Failed to load configuration");
- * }</pre>
+ * <p>It extends {@link RuntimeException}, making it unchecked. This allows
+ * configuration operations to remain concise while still providing the option
+ * to handle errors explicitly when needed.</p>
  *
  * @since 1.3.0
  */
@@ -38,10 +26,9 @@ public class ConfigException extends RuntimeException {
     }
 
     /**
-     * Constructs a new {@link ConfigException} with the specified detail message.
+     * Constructs a new {@link ConfigException} with a detail message.
      *
-     * @param message the detail message
-     *
+     * @param message the detail message describing the error
      * @since 1.3.0
      */
     public ConfigException(@NotNull String message) {
@@ -49,11 +36,10 @@ public class ConfigException extends RuntimeException {
     }
 
     /**
-     * Constructs a new {@link ConfigException} with the specified detail message and cause.
+     * Constructs a new {@link ConfigException} with a detail message and cause.
      *
-     * @param message the detail message
-     * @param cause the cause of the exception
-     *
+     * @param message the detail message describing the error
+     * @param cause   the underlying cause of the exception
      * @since 1.3.0
      */
     public ConfigException(@NotNull String message, @NotNull Throwable cause) {
@@ -61,10 +47,9 @@ public class ConfigException extends RuntimeException {
     }
 
     /**
-     * Constructs a new {@link ConfigException} with the specified cause.
+     * Constructs a new {@link ConfigException} with a cause.
      *
-     * @param cause the cause of the exception
-     *
+     * @param cause the underlying cause of the exception
      * @since 1.3.0
      */
     public ConfigException(@NotNull Throwable cause) {

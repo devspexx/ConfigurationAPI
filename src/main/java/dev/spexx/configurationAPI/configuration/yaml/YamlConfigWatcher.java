@@ -1,7 +1,12 @@
 package dev.spexx.configurationAPI.configuration.yaml;
 
+import dev.spexx.configurationAPI.events.ConfigReloadEvent;
 import dev.spexx.configurationAPI.exceptions.ConfigException;
+import dev.spexx.configurationAPI.utils.FileChecksum;
+import org.bukkit.Bukkit;
+import org.bukkit.plugin.java.JavaPlugin;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.io.IOException;
 import java.nio.file.*;
@@ -9,23 +14,25 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Watches YAML configuration files for changes.
+ * Watches {@link YamlConfig} files for changes.
  *
- * <p>Each registered {@link YamlConfig} is monitored for file system changes.
- * Multiple files in the same directory share a single {@link WatchKey}.</p>
+ * <p>Registered configurations are monitored for file system modifications.
+ * Files located in the same directory share a single {@link WatchKey}.</p>
  *
- * <p>File modification events are debounced to prevent duplicate reloads.</p>
+ * <p>Modification events are debounced to prevent duplicate reloads.</p>
  *
  * @since 1.3.0
  */
 public class YamlConfigWatcher {
 
+    private final @NotNull JavaPlugin javaPlugin;
+
     private final @NotNull WatchService watchService;
 
     /**
-     * Maps watched directories to their {@link WatchKey}.
+     * Maps directories to their {@link WatchKey}.
      *
-     * <p>A directory is registered only once even if multiple files within it are watched.</p>
+     * <p>Each directory is registered only once, even if multiple files within it are watched.</p>
      *
      * @since 1.3.0
      */
@@ -39,7 +46,7 @@ public class YamlConfigWatcher {
     private final Map<Path, YamlConfig> watchedFiles = new ConcurrentHashMap<>();
 
     /**
-     * Tracks last modification timestamps for debounce logic.
+     * Tracks last modification timestamps used for debounce logic.
      *
      * @since 1.3.0
      */
@@ -50,11 +57,12 @@ public class YamlConfigWatcher {
     /**
      * Creates a new watcher instance.
      *
+     * @param javaPlugin the plugin instance used for scheduling synchronous tasks
      * @throws ConfigException if the watcher cannot be initialized
-     *
      * @since 1.3.0
      */
-    public YamlConfigWatcher() throws ConfigException {
+    public YamlConfigWatcher(@NotNull JavaPlugin javaPlugin) throws ConfigException {
+        this.javaPlugin = javaPlugin;
         try {
             this.watchService = FileSystems.getDefault().newWatchService();
         } catch (IOException e) {
@@ -69,9 +77,7 @@ public class YamlConfigWatcher {
      * the directory is registered only once.</p>
      *
      * @param config the configuration to watch
-     *
      * @throws ConfigException if already registered or invalid
-     *
      * @since 1.3.0
      */
     public void watch(@NotNull YamlConfig config) throws ConfigException {
@@ -110,7 +116,6 @@ public class YamlConfigWatcher {
      * Starts the watcher thread.
      *
      * @throws ConfigException if already running
-     *
      * @since 1.3.0
      */
     public void start() throws ConfigException {
@@ -142,8 +147,8 @@ public class YamlConfigWatcher {
     /**
      * Internal watcher loop.
      *
-     * <p>Resolves directory keys back to their {@link Path} and processes events
-     * for registered files only.</p>
+     * <p>Resolves {@link WatchKey} instances back to their corresponding directory
+     * and processes events for registered files only.</p>
      *
      * @since 1.3.0
      */
@@ -174,6 +179,7 @@ public class YamlConfigWatcher {
             for (WatchEvent<?> event : key.pollEvents()) {
                 Path changed = dir.resolve((Path) event.context()).toAbsolutePath();
 
+                // null safety
                 YamlConfig config = watchedFiles.get(changed);
                 if (config == null) {
                     continue;
@@ -186,19 +192,47 @@ public class YamlConfigWatcher {
 
                 if (event.kind() == StandardWatchEventKinds.ENTRY_MODIFY) {
 
+                    @Nullable String oldChecksum = config.getCachedChecksum();
+                    @Nullable String newChecksum;
+
+                    try {
+                        newChecksum = FileChecksum.getSha256Checksum(config.getFile());
+                    } catch (Exception e) {
+                        continue;
+                    }
+
+                    // skip if nothing actually changed
+                    if (oldChecksum != null && oldChecksum.equals(newChecksum)) {
+                        continue;
+                    }
+
+                    // debounce
                     long now = System.currentTimeMillis();
                     long last = lastModified.getOrDefault(changed, 0L);
-
                     if (now - last < 200) {
                         continue;
                     }
 
                     lastModified.put(changed, now);
 
-                    System.out.println("[Watcher] File modified: " + changed);
-
                     try {
                         config.reload();
+
+                        // get updated checksum
+                        String updatedChecksum = config.getCachedChecksum();
+
+                        // Fire event on main thread
+                        Bukkit.getScheduler().runTask(javaPlugin, () -> {
+                            Bukkit.getPluginManager().callEvent(
+                                    new ConfigReloadEvent(
+                                            config.getFile().getName(),
+                                            config.get(),
+                                            oldChecksum,
+                                            updatedChecksum
+                                    )
+                            );
+                        });
+
                     } catch (Exception e) {
                         e.printStackTrace();
                     }

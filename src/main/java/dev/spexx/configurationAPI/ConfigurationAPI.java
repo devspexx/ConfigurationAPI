@@ -7,12 +7,27 @@ import org.bukkit.plugin.java.JavaPlugin;
 
 import java.io.File;
 
+/**
+ * Main plugin entry point for the ConfigurationAPI.
+ *
+ * <p>Initializes and demonstrates usage of the configuration system.</p>
+ *
+ * @since 1.0.0
+ */
 public final class ConfigurationAPI extends JavaPlugin {
+
+    /**
+     * Creates a new plugin instance.
+     *
+     * @since 1.0.0
+     */
+    public ConfigurationAPI() {
+    }
 
     @Override
     public void onEnable() {
 
-        ConfigManager manager = new ConfigManager();
+        ConfigManager manager = new ConfigManager(this);
 
         File configFile = new File(new File(getDataFolder(), "sampleJar"), "config.yml");
         manager.registerFromJar(

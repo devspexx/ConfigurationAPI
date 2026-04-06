@@ -5,30 +5,23 @@ import org.jetbrains.annotations.NotNull;
 import java.io.File;
 
 /**
- * Thrown when a configuration file cannot be parsed due to invalid format
- * or syntax errors.
+ * Exception thrown when a configuration file cannot be parsed.
  *
- * <p>This typically occurs when the file content does not conform to the expected
- * structure (e.g. invalid YAML syntax).</p>
+ * <p>This occurs when the file content is syntactically invalid or does not
+ * conform to the expected format.</p>
  *
- * <p>Common causes include:
- * <ul>
- *     <li>Malformed YAML structure</li>
- *     <li>Invalid indentation</li>
- *     <li>Unexpected tokens or characters</li>
- * </ul>
- * </p>
+ * <p>Typical causes include malformed structure, invalid indentation,
+ * or unexpected tokens.</p>
  *
  * @since 1.3.0
  */
 public class ConfigParseException extends ConfigFileException {
 
     /**
-     * Constructs a new {@link ConfigParseException} for a given file.
+     * Constructs a new {@link ConfigParseException} for a specific file.
      *
-     * @param file the file that failed to parse
-     * @param message the detail message describing the parsing issue
-     *
+     * @param file    the file that failed to parse
+     * @param message the detail message describing the parsing error
      * @since 1.3.0
      */
     public ConfigParseException(@NotNull File file, @NotNull String message) {
@@ -36,12 +29,11 @@ public class ConfigParseException extends ConfigFileException {
     }
 
     /**
-     * Constructs a new {@link ConfigParseException} with a cause.
+     * Constructs a new {@link ConfigParseException} for a specific file with a cause.
      *
-     * @param file the file that failed to parse
-     * @param message the detail message
-     * @param cause the underlying cause
-     *
+     * @param file    the file that failed to parse
+     * @param message the detail message describing the parsing error
+     * @param cause   the underlying cause of the parsing failure
      * @since 1.3.0
      */
     public ConfigParseException(@NotNull File file,

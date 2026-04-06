@@ -5,32 +5,21 @@ import org.jetbrains.annotations.NotNull;
 import java.io.File;
 
 /**
- * Thrown when a configuration file does not have the required permissions
- * to perform a specific operation.
+ * Exception thrown when a configuration file lacks the required permission
+ * for an operation.
  *
- * <p>This exception is typically used during validation of configuration files,
- * such as ensuring the file is readable before loading or writable before saving.</p>
- *
- * <p>It extends {@link ConfigFileException} to provide file-specific context.</p>
- *
- * <h2>Example</h2>
- * <pre>{@code
- * if (!file.canRead()) {
- *     throw new ConfigPermissionException(file, "read");
- * }
- * }</pre>
+ * <p>This is typically used to validate file access before performing actions
+ * such as reading or writing.</p>
  *
  * @since 1.3.0
  */
 public class ConfigPermissionException extends ConfigFileException {
 
     /**
-     * Constructs a new {@link ConfigPermissionException} for a given file
-     * and missing permission.
+     * Constructs a new {@link ConfigPermissionException} for a specific file.
      *
-     * @param file the file that failed permission validation
+     * @param file       the file that failed permission validation
      * @param permission the missing permission (e.g. "read", "write", "execute")
-     *
      * @since 1.3.0
      */
     public ConfigPermissionException(@NotNull File file, @NotNull String permission) {

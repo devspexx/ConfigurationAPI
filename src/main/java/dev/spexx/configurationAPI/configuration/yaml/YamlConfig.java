@@ -1,10 +1,11 @@
 package dev.spexx.configurationAPI.configuration.yaml;
 
-import dev.spexx.configurationAPI.file.PermissionChecker;
 import dev.spexx.configurationAPI.exceptions.ConfigException;
 import dev.spexx.configurationAPI.exceptions.ConfigFileException;
 import dev.spexx.configurationAPI.exceptions.ConfigParseException;
 import dev.spexx.configurationAPI.exceptions.ConfigPermissionException;
+import dev.spexx.configurationAPI.file.PermissionChecker;
+import dev.spexx.configurationAPI.utils.FileChecksum;
 import org.bukkit.configuration.InvalidConfigurationException;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.jetbrains.annotations.NotNull;
@@ -16,27 +17,43 @@ import java.nio.file.Files;
 /**
  * Represents a YAML configuration file abstraction.
  *
- * <p>The file may or may not exist at construction time. This class provides
- * methods to create, load, and delete the file safely.</p>
+ * <p>The file may or may not exist at construction time. Operations such as
+ * {@link #create()}, {@link #load()}, and {@link #save()} control the file lifecycle.</p>
  *
- * <p>The loaded configuration is cached and can be retrieved without reloading.</p>
+ * <p>The loaded configuration is cached and can be accessed without re-reading the file.</p>
  *
  * @since 1.3.0
  */
 public class YamlConfig {
 
     private final @NotNull File file;
+
     private @NotNull YamlConfiguration cached = new YamlConfiguration();
+
+    /**
+     * Cached SHA-256 checksum of the configuration file.
+     *
+     * <p>This value represents the last known checksum of the file after a successful
+     * {@link #load()} operation. It is used for efficient change detection to avoid
+     * unnecessary reloads.</p>
+     *
+     * <p>The value may be {@code null} if:
+     * <ul>
+     *     <li>the configuration has not been loaded yet</li>
+     *     <li>checksum generation failed during loading</li>
+     * </ul>
+     *
+     * <p>This field is updated internally and should be treated as read-only.</p>
+     */
+    private String cachedChecksum = null;
 
     /**
      * Creates a new YAML configuration wrapper.
      *
-     * <p>The file is not required to exist. If it exists, it must not be a directory.</p>
+     * <p>If the file exists, it must not be a directory.</p>
      *
      * @param file the configuration file
-     *
      * @throws ConfigException if the path points to a directory
-     *
      * @since 1.3.0
      */
     public YamlConfig(@NotNull File file) throws ConfigException {
@@ -48,16 +65,14 @@ public class YamlConfig {
     }
 
     /**
-     * Loads the YAML configuration from disk and updates the cache.
+     * Loads the configuration from disk and updates the cache.
      *
      * <p>The file must exist and be readable.</p>
      *
      * @return the loaded {@link YamlConfiguration}
-     *
-     * @throws ConfigFileException if file is missing or IO fails
-     * @throws ConfigParseException if YAML is invalid
-     * @throws ConfigPermissionException if file is not readable
-     *
+     * @throws ConfigFileException       if the file does not exist or I/O fails
+     * @throws ConfigParseException      if the file contains invalid YAML
+     * @throws ConfigPermissionException if the file is not readable
      * @since 1.3.0
      */
     public @NotNull YamlConfiguration load()
@@ -82,18 +97,43 @@ public class YamlConfig {
             throw new ConfigParseException(file, "Invalid YAML format", e);
         }
 
-        // 🔥 update cache
+        // update the config with new
         this.cached = yamlConfiguration;
+
+        // try to generate checksum
+        try {
+            this.cachedChecksum = FileChecksum.getSha256Checksum(file);
+        } catch (Exception e) {
+            this.cachedChecksum = null;
+        }
 
         return yamlConfiguration;
     }
 
     /**
+     * Returns the cached SHA-256 checksum of the configuration file.
+     *
+     * <p>The checksum reflects the state of the file at the time of the last successful
+     * {@link #load()} or {@link #reload()} operation.</p>
+     *
+     * <p>This method does not perform any file I/O and simply returns the previously
+     * computed checksum.</p>
+     *
+     * @return the cached checksum, or {@code null} if not yet available or if checksum generation failed
+     * @since 1.3.0
+     */
+    public String getCachedChecksum() {
+        return cachedChecksum;
+    }
+
+    /**
      * Reloads the configuration from disk.
      *
-     * @throws ConfigFileException       if file is missing or IO fails
-     * @throws ConfigParseException      if YAML is invalid
-     * @throws ConfigPermissionException if file is not readable
+     * <p>This method is equivalent to {@link #load()} and updates the cached state.</p>
+     *
+     * @throws ConfigFileException       if the file does not exist or I/O fails
+     * @throws ConfigParseException      if the file contains invalid YAML
+     * @throws ConfigPermissionException if the file is not readable
      * @since 1.3.0
      */
     public void reload()
@@ -104,9 +144,10 @@ public class YamlConfig {
     /**
      * Saves the cached configuration to disk.
      *
-     * @throws ConfigFileException if saving fails
-     * @throws ConfigPermissionException if file is not writable
+     * <p>The file must be writable.</p>
      *
+     * @throws ConfigFileException       if saving fails
+     * @throws ConfigPermissionException if the file is not writable
      * @since 1.3.0
      */
     public void save() throws ConfigFileException, ConfigPermissionException {
@@ -126,10 +167,9 @@ public class YamlConfig {
     /**
      * Returns the cached configuration.
      *
-     * <p>This does not trigger a file read.</p>
+     * <p>This method does not perform any file I/O.</p>
      *
      * @return the cached {@link YamlConfiguration}
-     *
      * @since 1.3.0
      */
     public @NotNull YamlConfiguration get() {
@@ -142,7 +182,6 @@ public class YamlConfig {
      * <p>Parent directories are created if necessary.</p>
      *
      * @throws ConfigFileException if creation fails
-     *
      * @since 1.3.0
      */
     public void create() throws ConfigFileException {
@@ -162,7 +201,6 @@ public class YamlConfig {
      * Deletes the file if it exists.
      *
      * @throws ConfigFileException if deletion fails
-     *
      * @since 1.3.0
      */
     public void delete() throws ConfigFileException {
@@ -177,7 +215,6 @@ public class YamlConfig {
      * Returns the underlying file.
      *
      * @return the configuration file
-     *
      * @since 1.3.0
      */
     public @NotNull File getFile() {
