@@ -34,6 +34,7 @@ can do in the near future about that.
 ```
 
 ## Or use jitpack
+```xml
 <repositories>
     <repository>
         <id>jitpack.io</id>
