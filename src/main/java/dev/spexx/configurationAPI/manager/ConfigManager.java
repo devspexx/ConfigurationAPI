@@ -69,10 +69,7 @@ public class ConfigManager {
             throw new ConfigException("Config already registered: " + key);
         }
 
-        YamlConfig config = new YamlConfig(file);
-
-        config.create();
-        config.load();
+        YamlConfig config = initialize(file);
 
         configs.put(key, config);
 
@@ -107,13 +104,31 @@ public class ConfigManager {
             copyResource(plugin, resourcePath, file);
         }
 
-        YamlConfig config = new YamlConfig(file);
-        config.create();
-        config.load();
+        YamlConfig config = initialize(file);
 
         configs.put(key, config);
 
         watcher.watch(config);
+    }
+
+    /**
+     * Initializes a {@link YamlConfig} instance for the given file.
+     *
+     * <p>If the file does not exist, it is created. The configuration is then
+     * loaded and cached.</p>
+     *
+     * @param file the configuration file to initialize
+     * @return the initialized {@link YamlConfig}
+     *
+     * @throws ConfigException if file creation fails or the path is invalid
+     *
+     * @since 1.3.0
+     */
+    private @NotNull YamlConfig initialize(File file) {
+        YamlConfig config = new YamlConfig(file);
+        config.create();
+        config.load();
+        return config;
     }
 
     /**

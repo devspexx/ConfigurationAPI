@@ -196,7 +196,7 @@ public class YamlConfigWatcher {
                     @Nullable String newChecksum;
 
                     try {
-                        newChecksum = FileChecksum.getSha256Checksum(config.getFile());
+                        newChecksum = FileChecksum.computeSha256(config.getFile());
                     } catch (Exception e) {
                         continue;
                     }
