@@ -171,7 +171,7 @@ public class YamlConfig {
      * <p>
      * Modifications affect the cached configuration directly.
      * Don't forget to save the cached config after you've made changes.
-     * <p/>
+     * </p>
      * <p>This method does not perform any file I/O.</p>
      *
      * @return the cached {@link YamlConfiguration}
