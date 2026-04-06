@@ -22,9 +22,8 @@ both ways.
 - A cool sync event! (`ConfigReloadEvent`)
 
 ## Installation
-Currently, it's only available as a jar. I'll see what I 
-can do in the near future about that.
 
+#### Use jar:
 ```xml
 <dependency>
     <groupId>dev.spexx</groupId>
@@ -33,7 +32,7 @@ can do in the near future about that.
 </dependency>
 ```
 
-## Or use jitpack
+#### or Jitpack
 ```xml
 <repositories>
     <repository>
