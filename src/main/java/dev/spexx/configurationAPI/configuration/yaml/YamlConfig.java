@@ -19,11 +19,14 @@ import java.nio.file.Files;
  * <p>The file may or may not exist at construction time. This class provides
  * methods to create, load, and delete the file safely.</p>
  *
+ * <p>The loaded configuration is cached and can be retrieved without reloading.</p>
+ *
  * @since 1.3.0
  */
 public class YamlConfig {
 
     private final @NotNull File file;
+    private @NotNull YamlConfiguration cached = new YamlConfiguration();
 
     /**
      * Creates a new YAML configuration wrapper.
@@ -45,7 +48,7 @@ public class YamlConfig {
     }
 
     /**
-     * Loads the YAML configuration from disk.
+     * Loads the YAML configuration from disk and updates the cache.
      *
      * <p>The file must exist and be readable.</p>
      *
@@ -61,7 +64,7 @@ public class YamlConfig {
             throws ConfigFileException, ConfigParseException, ConfigPermissionException {
 
         if (!file.exists()) {
-            throw new ConfigFileException(file, "File does not exist");
+            throw new ConfigFileException(file, "File does not exist. Did you forget to call create()?");
         }
 
         PermissionChecker checker = new PermissionChecker(file);
@@ -79,7 +82,39 @@ public class YamlConfig {
             throw new ConfigParseException(file, "Invalid YAML format", e);
         }
 
+        // 🔥 update cache
+        this.cached = yamlConfiguration;
+
         return yamlConfiguration;
+    }
+
+    /**
+     * Reloads the configuration from disk.
+     *
+     * @return the updated {@link YamlConfiguration}
+     *
+     * @throws ConfigFileException if file is missing or IO fails
+     * @throws ConfigParseException if YAML is invalid
+     * @throws ConfigPermissionException if file is not readable
+     *
+     * @since 1.3.0
+     */
+    public @NotNull YamlConfiguration reload()
+            throws ConfigFileException, ConfigParseException, ConfigPermissionException {
+        return load();
+    }
+
+    /**
+     * Returns the cached configuration.
+     *
+     * <p>This does not trigger a file read.</p>
+     *
+     * @return the cached {@link YamlConfiguration}
+     *
+     * @since 1.3.0
+     */
+    public @NotNull YamlConfiguration get() {
+        return cached;
     }
 
     /**
