@@ -91,17 +91,14 @@ public class YamlConfig {
     /**
      * Reloads the configuration from disk.
      *
-     * @return the updated {@link YamlConfiguration}
-     *
-     * @throws ConfigFileException if file is missing or IO fails
-     * @throws ConfigParseException if YAML is invalid
+     * @throws ConfigFileException       if file is missing or IO fails
+     * @throws ConfigParseException      if YAML is invalid
      * @throws ConfigPermissionException if file is not readable
-     *
      * @since 1.3.0
      */
-    public @NotNull YamlConfiguration reload()
+    public void reload()
             throws ConfigFileException, ConfigParseException, ConfigPermissionException {
-        return load();
+        load();
     }
 
     /**
@@ -142,6 +139,8 @@ public class YamlConfig {
     /**
      * Creates the file if it does not already exist.
      *
+     * <p>Parent directories are created if necessary.</p>
+     *
      * @throws ConfigFileException if creation fails
      *
      * @since 1.3.0
@@ -150,7 +149,9 @@ public class YamlConfig {
         if (file.exists()) return;
 
         try {
-            Files.createDirectories(file.getParentFile().toPath());
+            if (file.getParentFile() != null) {
+                Files.createDirectories(file.getParentFile().toPath());
+            }
             Files.createFile(file.toPath());
         } catch (IOException e) {
             throw new ConfigFileException(file, "Failed to create file", e);

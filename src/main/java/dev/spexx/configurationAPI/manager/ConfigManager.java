@@ -26,7 +26,16 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public class ConfigManager {
 
-    private final @NotNull Map<File, YamlConfig> configs = new ConcurrentHashMap<>();
+    /**
+     * Stores registered configurations keyed by their absolute file path.
+     *
+     * <p>Using {@link String} instead of {@link File} avoids inconsistencies caused by
+     * different {@link File} instances pointing to the same path.</p>
+     *
+     * @since 1.3.0
+     */
+    private final @NotNull Map<String, YamlConfig> configs = new ConcurrentHashMap<>();
+
     private final @NotNull YamlConfigWatcher watcher;
 
     /**
@@ -45,10 +54,7 @@ public class ConfigManager {
     /**
      * Registers and initializes a configuration file.
      *
-     * <p>If the file is already registered, an exception is thrown.</p>
-     *
-     * <p>The file will be created if it does not exist, loaded, and registered
-     * for watching.</p>
+     * <p>The file is created if it does not exist, then loaded and tracked by the watcher.</p>
      *
      * @param file the configuration file
      *
@@ -60,8 +66,10 @@ public class ConfigManager {
      */
     public @NotNull YamlConfig register(@NotNull File file) throws ConfigException {
 
-        if (configs.containsKey(file)) {
-            throw new ConfigException("Config already registered: " + file.getAbsolutePath());
+        String key = file.getAbsolutePath();
+
+        if (configs.containsKey(key)) {
+            throw new ConfigException("Config already registered: " + key);
         }
 
         YamlConfig config = new YamlConfig(file);
@@ -69,33 +77,46 @@ public class ConfigManager {
         config.create();
         config.load();
 
-        configs.put(file, config);
+        configs.put(key, config);
 
         watcher.watch(config);
 
         return config;
     }
 
-    public @NotNull YamlConfig registerFromJar(@NotNull File file,
-                                                    @NotNull String resourcePath,
-                                                    @NotNull JavaPlugin plugin) throws ConfigException {
+    /**
+     * Registers a configuration file using a resource from the plugin JAR as default.
+     *
+     * <p>If the file does not exist, it is copied from the specified resource path.</p>
+     *
+     * @param file         the target configuration file
+     * @param resourcePath the path inside the plugin JAR
+     * @param plugin       the plugin used to access the resource
+     * @throws ConfigException if already registered or copy/load fails
+     * @since 1.3.0
+     */
+    public void registerFromJar(@NotNull File file,
+                                @NotNull String resourcePath,
+                                @NotNull JavaPlugin plugin) throws ConfigException {
 
-        if (configs.containsKey(file)) {
-            throw new ConfigException("Config already registered: " + file.getAbsolutePath());
+        String key = file.getAbsolutePath();
+
+        if (configs.containsKey(key)) {
+            throw new ConfigException("Config already registered: " + key);
         }
 
-        // copy from jar if missing
         if (!file.exists()) {
             copyResource(plugin, resourcePath, file);
         }
 
         YamlConfig config = new YamlConfig(file);
+        config.create();
         config.load();
 
-        configs.put(file, config);
+        configs.put(key, config);
+
         watcher.watch(config);
 
-        return config;
     }
 
     private void copyResource(JavaPlugin plugin, String resourcePath, File target)
@@ -121,6 +142,8 @@ public class ConfigManager {
     /**
      * Returns a registered configuration.
      *
+     * <p>Lookup is performed using the file's absolute path to ensure consistency.</p>
+     *
      * @param file the configuration file
      *
      * @return the {@link YamlConfig}
@@ -130,10 +153,12 @@ public class ConfigManager {
      * @since 1.3.0
      */
     public @NotNull YamlConfig get(@NotNull File file) throws ConfigException {
-        YamlConfig config = configs.get(file);
+        String key = file.getAbsolutePath();
+
+        YamlConfig config = configs.get(key);
 
         if (config == null) {
-            throw new ConfigException("Config not registered: " + file.getAbsolutePath());
+            throw new ConfigException("Config not registered: " + key);
         }
 
         return config;

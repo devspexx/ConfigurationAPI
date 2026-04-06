@@ -11,9 +11,10 @@ import java.util.concurrent.ConcurrentHashMap;
 /**
  * Watches YAML configuration files for changes.
  *
- * <p>Files can be registered for watching. Each file can only be registered once.</p>
+ * <p>Each registered {@link YamlConfig} is monitored for file system changes.
+ * Multiple files in the same directory share a single {@link WatchKey}.</p>
  *
- * <p>This watcher runs on a dedicated thread and listens for file system events.</p>
+ * <p>File modification events are debounced to prevent duplicate reloads.</p>
  *
  * @since 1.3.0
  */
@@ -21,9 +22,27 @@ public class YamlConfigWatcher {
 
     private final @NotNull WatchService watchService;
 
-    private final @NotNull Map<WatchKey, Path> directories = new ConcurrentHashMap<>();
+    /**
+     * Maps watched directories to their {@link WatchKey}.
+     *
+     * <p>A directory is registered only once even if multiple files within it are watched.</p>
+     *
+     * @since 1.3.0
+     */
+    private final @NotNull Map<Path, WatchKey> directories = new ConcurrentHashMap<>();
+
+    /**
+     * Maps absolute file paths to their corresponding {@link YamlConfig}.
+     *
+     * @since 1.3.0
+     */
     private final Map<Path, YamlConfig> watchedFiles = new ConcurrentHashMap<>();
 
+    /**
+     * Tracks last modification timestamps for debounce logic.
+     *
+     * @since 1.3.0
+     */
     private final Map<Path, Long> lastModified = new ConcurrentHashMap<>();
 
     private volatile boolean running = false;
@@ -44,13 +63,14 @@ public class YamlConfigWatcher {
     }
 
     /**
-     * Registers a file for watching.
+     * Registers a configuration for watching.
      *
-     * <p>The file cannot be registered more than once.</p>
+     * <p>If multiple configurations are located in the same directory,
+     * the directory is registered only once.</p>
      *
      * @param config the configuration to watch
      *
-     * @throws ConfigException if the file is already registered or invalid
+     * @throws ConfigException if already registered or invalid
      *
      * @since 1.3.0
      */
@@ -67,16 +87,21 @@ public class YamlConfigWatcher {
         }
 
         try {
-            WatchKey key = directory.register(
-                    watchService,
-                    StandardWatchEventKinds.ENTRY_MODIFY,
-                    StandardWatchEventKinds.ENTRY_DELETE
-            );
+            directories.computeIfAbsent(directory, dir -> {
+                try {
+                    return dir.register(
+                            watchService,
+                            StandardWatchEventKinds.ENTRY_MODIFY,
+                            StandardWatchEventKinds.ENTRY_DELETE
+                    );
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
+            });
 
-            directories.put(key, directory);
             watchedFiles.put(path, config);
 
-        } catch (IOException e) {
+        } catch (RuntimeException e) {
             throw new ConfigException("Failed to register file watcher: " + path, e);
         }
     }
@@ -117,6 +142,9 @@ public class YamlConfigWatcher {
     /**
      * Internal watcher loop.
      *
+     * <p>Resolves directory keys back to their {@link Path} and processes events
+     * for registered files only.</p>
+     *
      * @since 1.3.0
      */
     private void run() {
@@ -129,7 +157,15 @@ public class YamlConfigWatcher {
                 return;
             }
 
-            Path dir = directories.get(key);
+            Path dir = null;
+
+            for (Map.Entry<Path, WatchKey> entry : directories.entrySet()) {
+                if (entry.getValue().equals(key)) {
+                    dir = entry.getKey();
+                    break;
+                }
+            }
+
             if (dir == null) {
                 key.reset();
                 continue;
@@ -143,19 +179,16 @@ public class YamlConfigWatcher {
                     continue;
                 }
 
-                // stop tracking deleted file
                 if (event.kind() == StandardWatchEventKinds.ENTRY_DELETE) {
                     watchedFiles.remove(changed);
                     continue;
                 }
 
-                // reload on modify
                 if (event.kind() == StandardWatchEventKinds.ENTRY_MODIFY) {
 
                     long now = System.currentTimeMillis();
                     long last = lastModified.getOrDefault(changed, 0L);
 
-                    // debounce to prevent double / triple firing
                     if (now - last < 200) {
                         continue;
                     }
