@@ -3,11 +3,9 @@ package dev.spexx.configurationAPI.configuration.yaml;
 import dev.spexx.configurationAPI.exceptions.ConfigException;
 import org.jetbrains.annotations.NotNull;
 
-import java.io.File;
 import java.io.IOException;
 import java.nio.file.*;
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -24,7 +22,9 @@ public class YamlConfigWatcher {
     private final @NotNull WatchService watchService;
 
     private final @NotNull Map<WatchKey, Path> directories = new ConcurrentHashMap<>();
-    private final @NotNull Set<Path> watchedFiles = ConcurrentHashMap.newKeySet();
+    private final Map<Path, YamlConfig> watchedFiles = new ConcurrentHashMap<>();
+
+    private final Map<Path, Long> lastModified = new ConcurrentHashMap<>();
 
     private volatile boolean running = false;
 
@@ -48,16 +48,16 @@ public class YamlConfigWatcher {
      *
      * <p>The file cannot be registered more than once.</p>
      *
-     * @param file the file to watch
+     * @param config the configuration to watch
      *
      * @throws ConfigException if the file is already registered or invalid
      *
      * @since 1.3.0
      */
-    public void watch(@NotNull File file) throws ConfigException {
-        Path path = file.toPath().toAbsolutePath();
+    public void watch(@NotNull YamlConfig config) throws ConfigException {
+        Path path = config.getFile().toPath().toAbsolutePath();
 
-        if (watchedFiles.contains(path)) {
+        if (watchedFiles.containsKey(path)) {
             throw new ConfigException("File is already being watched: " + path);
         }
 
@@ -74,7 +74,7 @@ public class YamlConfigWatcher {
             );
 
             directories.put(key, directory);
-            watchedFiles.add(path);
+            watchedFiles.put(path, config);
 
         } catch (IOException e) {
             throw new ConfigException("Failed to register file watcher: " + path, e);
@@ -135,11 +135,11 @@ public class YamlConfigWatcher {
                 continue;
             }
 
-            // watch for events
             for (WatchEvent<?> event : key.pollEvents()) {
                 Path changed = dir.resolve((Path) event.context()).toAbsolutePath();
 
-                if (!watchedFiles.contains(changed)) {
+                YamlConfig config = watchedFiles.get(changed);
+                if (config == null) {
                     continue;
                 }
 
@@ -149,9 +149,26 @@ public class YamlConfigWatcher {
                     continue;
                 }
 
-                // reload the configuration, once it's been externally modified
+                // reload on modify
                 if (event.kind() == StandardWatchEventKinds.ENTRY_MODIFY) {
+
+                    long now = System.currentTimeMillis();
+                    long last = lastModified.getOrDefault(changed, 0L);
+
+                    // debounce to prevent double / triple firing
+                    if (now - last < 200) {
+                        continue;
+                    }
+
+                    lastModified.put(changed, now);
+
                     System.out.println("[Watcher] File modified: " + changed);
+
+                    try {
+                        config.reload();
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
                 }
             }
 

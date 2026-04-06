@@ -14,15 +14,19 @@ public final class ConfigurationAPI extends JavaPlugin {
 
         ConfigManager manager = new ConfigManager();
 
-        File configFile = new File(getDataFolder(), "config.yml");
-        YamlConfig config = manager.registerWithDefaults(
+        File configFile = new File(new File(getDataFolder(), "sampleJar"), "config.yml");
+        manager.registerFromJar(
                 configFile,
                 "config.yml",
                 this
         );
 
+        File customFile = new File(new File(getDataFolder(), "sampleCustom"), "data.yml");
+        YamlConfig customConfig = manager.register(customFile);
+        YamlConfiguration customYaml = customConfig.get();
+        customYaml.set("hello", "world");
+        customConfig.save();
+
         manager.start();
-        YamlConfiguration yaml = config.get();
-        getLogger().info(yaml.getString("test", "default value"));
     }
 }

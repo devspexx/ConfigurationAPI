@@ -71,12 +71,12 @@ public class ConfigManager {
 
         configs.put(file, config);
 
-        watcher.watch(file);
+        watcher.watch(config);
 
         return config;
     }
 
-    public @NotNull YamlConfig registerWithDefaults(@NotNull File file,
+    public @NotNull YamlConfig registerFromJar(@NotNull File file,
                                                     @NotNull String resourcePath,
                                                     @NotNull JavaPlugin plugin) throws ConfigException {
 
@@ -93,7 +93,7 @@ public class ConfigManager {
         config.load();
 
         configs.put(file, config);
-        watcher.watch(file);
+        watcher.watch(config);
 
         return config;
     }

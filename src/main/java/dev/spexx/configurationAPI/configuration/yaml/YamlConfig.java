@@ -105,6 +105,28 @@ public class YamlConfig {
     }
 
     /**
+     * Saves the cached configuration to disk.
+     *
+     * @throws ConfigFileException if saving fails
+     * @throws ConfigPermissionException if file is not writable
+     *
+     * @since 1.3.0
+     */
+    public void save() throws ConfigFileException, ConfigPermissionException {
+
+        PermissionChecker checker = new PermissionChecker(file);
+        if (!checker.canWrite()) {
+            throw new ConfigPermissionException(file, "write");
+        }
+
+        try {
+            cached.save(file);
+        } catch (IOException e) {
+            throw new ConfigFileException(file, "Failed to save config", e);
+        }
+    }
+
+    /**
      * Returns the cached configuration.
      *
      * <p>This does not trigger a file read.</p>
