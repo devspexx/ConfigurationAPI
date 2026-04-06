@@ -3,132 +3,117 @@
 
 ## ConfigurationAPI
 
-A lightweight, high-performance YAML configuration API for Paper/Spigot plugins, featuring automatic file watching, atomic reloads, and a clean event-driven design.
+This is a simple yet somewhat robust plugin I wrote in my free time. 
+It allows developers to not worry about config changes and implementing /reload commands in their java plugins.
+It is a Paper based API, well, a Paper based plugin. It will only work on Paper servers. Don't try to install it on spigot 
+servers, it won't work. I might make a fork of it in the near future, to also support spigot.
+<br><br>
+This plugin automatically tracks any configs you configure it to track, and reloads them, when 
+they were manually edited (without code), and you can also write to them by code, of course. So it works
+both ways.
 
-### Features
-- Automatic config reload on file changes (WatchService-based)
-- Single global watcher (no per-file overhead)
-- Atomic, thread-safe configuration replacement
-- SHA-256 checksum-based change detection
-- Debounce protection against duplicate reloads
-- Synchronous reload events (ConfigReloadedEvent)
-- Clean, minimal, and predictable API
-- Designed for high-performance plugin environments
+## Features
 
-### Why ConfigurationAPI?
-- Eliminates manual reload logic
-- Guarantees consistent configuration state
-- Prevents unsafe concurrent access
-- Centralized architecture (single source of truth)
-- Minimal overhead and easy integration
+- Simple API
+- File watching (WatchService)
+- checksum validation (no unnecessary reloads)
+- Debounce protection
+- Single watcher (no per-file threads)
+- A cool sync event! (`ConfigReloadEvent`)
 
-### Installation
-#### Maven
+## Installation
+Currently, it's only available as a jar. I'll see what I 
+can do in the near future about that.
+
 ```xml
 <dependency>
     <groupId>dev.spexx</groupId>
     <artifactId>ConfigurationAPI</artifactId>
-    <version>1.2.0</version>
+    <version>1.3.0</version> 
 </dependency>
 ```
 
 ### Usage
+#### Full sample (with comments)
 
-#### 1. Create ConfigManager
 ```java
-ConfigManager configManager = new ConfigManager(plugin);
+import dev.spexx.configurationAPI.manager.ConfigManager;
+
+// ConfigManager takes a plugin instance, should only
+// be initialized once!
+ConfigManager configManager = new ConfigManager(this);
+
+// Sample 1 - registering files from the plugin jar itself
+// Which means you should NOT use saveDefaultConfig() / saveConfig() 
+// anywhere in your plugin.
+
+// This is where you want the config from the plugin resources to be saved.
+File myPluginConfigDestination = new File(getDataFolder(), "config.yml");
+
+// 2nd parameter, "config.yml" is the path inside the jar. Should really leave that as it is, only 
+// change your file name. 3rd parameter is your plugin instance - so we know from which plugin we're 
+// pulling the config.
+configManager.registerFromJar(myPluginConfigDestination, "config.yml", this);
+
+// I recommend putting all of this in your onEnable, at the end don't forget to
+// actually start the watch service. Note that you can also dynamically create files during
+// runtime, you don't have to do everything in onEnable.
+manager.start();
+
+// Sample 2 - registering custom yaml files, except not from plugin jar
+// This is fairly simple!
+YamlConfig myCustomConfig = manager.register(
+        new File(getDataFolder(), "data.yml")
+);
+ 
+// What you're doing here is creating a file, in your plugin folder - getDataFolder(),
+// and you're naming it 'data.yml', that's about it.
+// You can write to it:
+myCustomConfig.get().set("hello", "world");
+
+// Read from it (get() - returns the latest internally cached config,
+// basically, the latest config that matches the file on your disk)
+// with get(), you get raw YamlConfiguration access, so you're able to do
+// anything. If you do change anything in the file don't forget to
+// save it in the end: myCustomConfig.save(), api will handle the rest.
+@Nullable String myValue = myCustomConfig.get().getString("something.here");
+
+// ---
+// If you find this confusing, there is javadoc at every method / public variable. So you won't be lost!
 ```
-#### 2. Load a configuration file
+
+#### Listen for reload (If you need to)
+
 ```java
-File file = new File(plugin.getDataFolder(), "config.yml");
+import org.jetbrains.annotations.NotNull;
 
-YamlConfig config = configManager.getOrLoad(file);
-```
-#### 2.1 Load default resource (e.g. config.yml)
-```java
-YamlConfig config = configManager.getOrLoadResource("config.yml");
-
-// Copies file from JAR if it does not exist
-// Automatically registers it with the watcher
-```
-#### 3. Access configuration
-```java
-YamlConfig config = configManager.get(file);
-String value = config.config().getString("path.to.value");
-
-// Always returns the latest snapshot
-// Safe for concurrent access
-```
-
-#### 4. Automatic Reloads
-Configuration files are automatically monitored.
-
-When a file changes:
-- The file is reloaded
-- A new `YamlConfig` instance is created
-- The old instance is atomically replaced
-- A `ConfigReloadedEvent` is fired
-
-
-#### 5. Listening to Reload Events
-```java
 @EventHandler
-public void onReload(ConfigReloadedEvent event) {
-
-    plugin.getLogger().info(() ->
-            "[Config] Reloaded: " +
-                    event.getNewConfig().file().getName() +
-                    " (" + event.getReloadTimeMs() + "ms)"
-    );
-
-    plugin.getLogger().info(() ->
-            "Checksum: " +
-                    event.getOldChecksum() +
-                    " -> " +
-                    event.getNewChecksum()
-    );
+public void onReload(@NotNull ConfigReloadEvent event) {
+    getLogger().info("Reloaded: " + event.getConfigName());
 }
 ```
 
-#### 6. Event Data
-`ConfigReloadedEvent` provides:
-- `getOldConfig()` → previous snapshot
-- `getNewConfig()` → updated snapshot
-- `getOldChecksum()` → previous file hash
-- `getNewChecksum()` → new file hash
-- `getReloadTimeMs()` → reload duration
+#### What this event provides
+```
+## ConfigReloadEvent
 
-#### 7. Architecture Overview
-```yml
-ConfigManager (API layer)
-├── delegates to GlobalConfigWatcher
-└── provides access to configs
-
-GlobalConfigWatcher (core)
-├── owns config state (Map<Path, YamlConfig>)
-├── owns checksums
-├── handles file watching (WatchService)
-├── performs reloads
-└── fires events
-
-YamlConfig
-└── immutable snapshot of configuration
+| Method             | Description                              |
+|--------------------|------------------------------------------|
+| `getConfigName()`  | Full name of the file (e.g. `config.yml`)|
+| `getNewConfig()`   | Updated configuration (latest state)     |
+| `getOldChecksum()` | Checksum before reload                   |
+| `getNewChecksum()` | Checksum after reload                    |
 ```
 
-#### 8. Threading Model
-- Watcher runs on a dedicated async thread
-- File changes are processed asynchronously
-- Events are dispatched synchronously on the main thread
-- `YamlConfig` instances are immutable
+#### Event behavior
+When file changes:
+- Change is detected internally in watcher
+- Checksum is computed 
+  - If checksum is different, reload event is fired, and new file is cached 
+  - New file overrides the latest file (if any) in the cache
+  - If checksum isn't different, nothing happens, as there were no changes in the file
+- Event is fired on main thread
 
-#### 9. Best Practices
-- Always access configs via `ConfigManager`
-- Do not store `YamlConfig` instances long-term
-- Use `ConfigReloadedEvent` for reactive updates
-- Avoid modifying `FileConfiguration` directly
+---
 
-#### 10. Guarantees
-- No duplicated configuration state
-- Atomic updates (no partial reads)
-- No reload if file content is unchanged
-- Safe under concurrent access
+### Thank you for reading!

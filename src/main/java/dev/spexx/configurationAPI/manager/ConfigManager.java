@@ -1,289 +1,191 @@
 package dev.spexx.configurationAPI.manager;
 
-import dev.spexx.configurationAPI.config.ConfigLoadResult;
-import dev.spexx.configurationAPI.config.ConfigLoadStatus;
-import dev.spexx.configurationAPI.config.YamlConfig;
-import dev.spexx.configurationAPI.watcher.GlobalConfigWatcher;
-import org.bukkit.configuration.file.YamlConfiguration;
+import dev.spexx.configurationAPI.configuration.yaml.YamlConfig;
+import dev.spexx.configurationAPI.configuration.yaml.YamlConfigWatcher;
+import dev.spexx.configurationAPI.exceptions.ConfigException;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.jetbrains.annotations.NotNull;
 
 import java.io.File;
 import java.io.IOException;
-import java.nio.file.Path;
-import java.util.Collection;
-import java.util.Objects;
+import java.io.InputStream;
+import java.nio.file.Files;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Central access point for configuration files managed by the system.
+ * Manages multiple {@link YamlConfig} instances.
  *
- * <p>This class is responsible for:</p>
- * <ul>
- *     <li>Loading configuration files from disk</li>
- *     <li>Registering configurations with the global watcher</li>
- *     <li>Providing access to the latest immutable configuration snapshots</li>
- * </ul>
+ * <p>Provides a centralized registry for configuration files, ensuring that each file
+ * is registered only once and accessed consistently.</p>
  *
- * <h2>Architecture</h2>
- * <p>The {@link GlobalConfigWatcher} serves as the single source of truth for all
- * configuration state. This class delegates all state management to the watcher
- * and does not maintain its own cache.</p>
+ * <p>Integrates with {@link YamlConfigWatcher} to optionally enable automatic reload
+ * when files are modified.</p>
  *
- * <h2>Thread Safety</h2>
- * <p>This class is thread-safe. The underlying watcher uses concurrent data structures
- * and atomic replacement of {@link YamlConfig} instances.</p>
- *
- * @apiNote {@link YamlConfig} instances are immutable snapshots. Consumers should
- * retrieve them on demand instead of caching long-term references.
- *
- * @since 1.1.0
+ * @since 1.3.0
  */
-public final class ConfigManager {
-
-    private final @NotNull JavaPlugin plugin;
-    private final @NotNull GlobalConfigWatcher watcher;
+public class ConfigManager {
 
     /**
-     * Creates a new {@code ConfigManager}.
+     * Stores registered configurations keyed by their absolute file path.
      *
-     * <p>Initializes and starts the {@link GlobalConfigWatcher}, which begins
-     * monitoring registered configuration files for changes.</p>
+     * <p>Using a {@link String} key avoids inconsistencies caused by different
+     * {@link File} instances referring to the same path.</p>
      *
-     * @param plugin owning plugin instance, must not be {@code null}
-     *
-     * @throws NullPointerException if {@code plugin} is {@code null}
-     * @throws RuntimeException if watcher initialization fails
-     *
-     * @since 1.1.0
+     * @since 1.3.0
      */
-    public ConfigManager(@NotNull JavaPlugin plugin) {
-        this.plugin = Objects.requireNonNull(plugin, "plugin");
+    private final @NotNull Map<String, YamlConfig> configs = new ConcurrentHashMap<>();
 
-        try {
-            this.watcher = new GlobalConfigWatcher(plugin);
-            this.watcher.start();
-        } catch (IOException e) {
-            throw new RuntimeException("Failed to initialize GlobalConfigWatcher", e);
-        }
+    private final @NotNull YamlConfigWatcher watcher;
+
+    /**
+     * Creates a new configuration manager.
+     *
+     * <p>An internal {@link YamlConfigWatcher} is created for tracking file changes.</p>
+     *
+     * @param javaPlugin the plugin instance used for scheduling and event dispatching
+     * @throws ConfigException if watcher initialization fails
+     * @since 1.3.0
+     */
+    public ConfigManager(@NotNull JavaPlugin javaPlugin) throws ConfigException {
+        this.watcher = new YamlConfigWatcher(javaPlugin);
     }
 
     /**
-     * Returns the latest configuration snapshot for the given file.
+     * Registers and initializes a configuration file.
      *
-     * <p>This method does not attempt to load the file. The configuration must
-     * already be registered.</p>
+     * <p>If the file does not exist, it is created before loading.</p>
      *
-     * @param file configuration file, must not be {@code null}
-     * @return latest {@link YamlConfig} snapshot, never {@code null}
-     *
-     * @throws NullPointerException if {@code file} is {@code null}
-     * @throws IllegalStateException if the configuration is not loaded
-     *
-     * @since 1.1.0
+     * @param file the configuration file
+     * @return the managed {@link YamlConfig}
+     * @throws ConfigException if the file is already registered or initialization fails
+     * @since 1.3.0
      */
-    public @NotNull YamlConfig get(@NotNull File file) {
+    public @NotNull YamlConfig register(@NotNull File file) throws ConfigException {
 
-        Path path = normalize(file.toPath());
+        String key = file.getAbsolutePath();
 
-        YamlConfig config = watcher.get(path);
-        if (config == null) {
-            throw new IllegalStateException("Config not loaded: " + path);
+        if (configs.containsKey(key)) {
+            throw new ConfigException("Config already registered: " + key);
         }
+
+        YamlConfig config = new YamlConfig(file);
+
+        config.create();
+        config.load();
+
+        configs.put(key, config);
+
+        watcher.watch(config);
 
         return config;
     }
 
     /**
-     * Returns an existing configuration or loads it if not already tracked.
+     * Registers a configuration file using a resource from the plugin JAR.
      *
-     * <p>If the configuration is not registered, it is loaded and registered
-     * with the watcher.</p>
+     * <p>If the file does not exist, it is copied from the specified resource path
+     * before being loaded.</p>
      *
-     * @param file configuration file, must not be {@code null}
-     * @return latest {@link YamlConfig} snapshot, never {@code null}
-     *
-     * @since 1.1.0
+     * @param file         the target configuration file
+     * @param resourcePath the path inside the plugin JAR
+     * @param plugin       the plugin used to access the resource
+     * @throws ConfigException if already registered or copy/load fails
+     * @since 1.3.0
      */
-    public @NotNull YamlConfig getOrLoad(@NotNull File file) {
+    public void registerFromJar(@NotNull File file,
+                                @NotNull String resourcePath,
+                                @NotNull JavaPlugin plugin) throws ConfigException {
 
-        Path path = normalize(file.toPath());
+        String key = file.getAbsolutePath();
 
-        YamlConfig existing = watcher.get(path);
-        if (existing != null) {
-            return existing;
+        if (configs.containsKey(key)) {
+            throw new ConfigException("Config already registered: " + key);
         }
 
-        return loadInternal(file);
-    }
-
-    /**
-     * Loads a configuration file intended for internal plugin usage.
-     *
-     * <p>This method guarantees that the file exists by copying it from the
-     * plugin JAR if missing.</p>
-     *
-     * <p><b>Behavior:</b></p>
-     * <ul>
-     *     <li>Validates that the resource exists in the plugin JAR</li>
-     *     <li>Copies the resource if the file does not exist</li>
-     *     <li>Loads and registers the configuration</li>
-     * </ul>
-     *
-     * @param resourceName resource name (e.g. {@code "config.yml"})
-     * @return loaded configuration snapshot
-     *
-     * @throws IllegalArgumentException if resource is missing in JAR
-     *
-     * @since 1.1.0
-     */
-    public @NotNull YamlConfig getInternal(@NotNull String resourceName) {
-
-        Objects.requireNonNull(resourceName, "resourceName");
-
-        // Ensure resource exists inside JAR
-        if (plugin.getResource(resourceName) == null) {
-            throw new IllegalArgumentException("Resource not found in plugin JAR: " + resourceName);
-        }
-
-        File file = new File(plugin.getDataFolder(), resourceName);
-
-        // Copy resource if missing
         if (!file.exists()) {
-            plugin.saveResource(resourceName, false);
+            copyResource(plugin, resourcePath, file);
         }
 
-        return getOrLoad(file);
+        YamlConfig config = new YamlConfig(file);
+        config.create();
+        config.load();
+
+        configs.put(key, config);
+
+        watcher.watch(config);
     }
 
     /**
-     * Attempts to load a configuration file safely.
+     * Copies a resource from the plugin JAR to the specified file.
      *
-     * <p>Never throws exceptions. Instead, returns a structured result.</p>
+     * <p>Parent directories are created if necessary.</p>
      *
-     * @param file configuration file
-     * @return result describing outcome
-     *
-     * @since 1.1.0
+     * @param plugin       the plugin providing the resource
+     * @param resourcePath the path inside the plugin JAR
+     * @param target       the target file location
+     * @throws ConfigException if the resource is missing or copy fails
+     * @since 1.3.0
      */
-    public @NotNull ConfigLoadResult tryLoad(@NotNull File file) {
-        try {
-            return new ConfigLoadResult(ConfigLoadStatus.LOADED, loadInternal(file), null);
-        } catch (Exception e) {
-            return new ConfigLoadResult(ConfigLoadStatus.IO_ERROR, null, e);
-        }
-    }
+    private void copyResource(@NotNull JavaPlugin plugin,
+                              @NotNull String resourcePath,
+                              @NotNull File target) throws ConfigException {
 
-    /**
-     * Attempts to create and load a configuration safely.
-     *
-     * @param file configuration file
-     * @return result describing outcome
-     *
-     * @since 1.1.0
-     */
-    public @NotNull ConfigLoadResult tryCreate(@NotNull File file) {
+        try (InputStream in = plugin.getResource(resourcePath)) {
 
-        if (file.exists()) {
-            return new ConfigLoadResult(ConfigLoadStatus.ALREADY_EXISTS, get(file), null);
-        }
+            if (in == null) {
+                throw new ConfigException("Resource not found in jar: " + resourcePath);
+            }
 
-        try {
-            ensureParentDirectories(file);
-            return new ConfigLoadResult(ConfigLoadStatus.CREATED, loadInternal(file), null);
-        } catch (Exception e) {
-            return new ConfigLoadResult(ConfigLoadStatus.IO_ERROR, null, e);
-        }
-    }
+            if (target.getParentFile() != null) {
+                Files.createDirectories(target.getParentFile().toPath());
+            }
 
-    /**
-     * Stops tracking a configuration file.
-     *
-     * @param file configuration file
-     *
-     * @since 1.1.0
-     */
-    public void unload(@NotNull File file) {
-        watcher.unregister(normalize(file.toPath()));
-    }
+            Files.copy(in, target.toPath());
 
-    /**
-     * Returns all tracked configurations.
-     *
-     * @return collection of configurations
-     *
-     * @since 1.1.0
-     */
-    public @NotNull Collection<YamlConfig> getAll() {
-        return watcher.getAll();
-    }
-
-    /**
-     * Stops the underlying watcher.
-     *
-     * <p>Must be called during plugin shutdown to avoid thread leaks.</p>
-     *
-     * @since 1.1.0
-     */
-    public void shutdown() {
-        watcher.stop();
-    }
-
-    /**
-     * Internal load implementation.
-     *
-     * @param file configuration file
-     * @return loaded configuration
-     *
-     * @since 1.1.0
-     */
-    private @NotNull YamlConfig loadInternal(@NotNull File file) {
-
-        // Ensure directory structure exists
-        ensureParentDirectories(file);
-
-        // Load YAML into memory
-        YamlConfig config = new YamlConfig(
-                file,
-                YamlConfiguration.loadConfiguration(file)
-        );
-
-        try {
-            // Register with watcher for live updates
-            watcher.register(config);
         } catch (IOException e) {
-            throw new RuntimeException("Failed to register watcher for " + file, e);
+            throw new ConfigException("Failed to copy resource: " + resourcePath, e);
+        }
+    }
+
+    /**
+     * Returns a registered configuration.
+     *
+     * <p>Lookup is performed using the file's absolute path to ensure consistency.</p>
+     *
+     * @param file the configuration file
+     * @return the {@link YamlConfig}
+     * @throws ConfigException if the config is not registered
+     * @since 1.3.0
+     */
+    public @NotNull YamlConfig get(@NotNull File file) throws ConfigException {
+        String key = file.getAbsolutePath();
+
+        YamlConfig config = configs.get(key);
+
+        if (config == null) {
+            throw new ConfigException("Config not registered: " + key);
         }
 
         return config;
     }
 
     /**
-     * Ensures parent directories exist.
+     * Starts the internal watcher.
      *
-     * @param file file whose parent directories should exist
-     *
-     * @since 1.1.0
+     * @throws ConfigException if already running or fails
+     * @since 1.3.0
      */
-    private void ensureParentDirectories(@NotNull File file) {
-
-        File parent = file.getParentFile();
-
-        if (parent != null && !parent.exists()) {
-            if (!parent.mkdirs() && !parent.exists()) {
-                throw new IllegalStateException("Failed to create directories: " + parent);
-            }
-        }
+    public void start() throws ConfigException {
+        watcher.start();
     }
 
     /**
-     * Normalizes a file path.
+     * Stops the internal watcher.
      *
-     * @param path raw path
-     * @return normalized absolute path
-     *
-     * @since 1.1.0
+     * @since 1.3.0
      */
-    private static @NotNull Path normalize(@NotNull Path path) {
-        return path.toAbsolutePath().normalize();
+    public void stop() {
+        watcher.stop();
     }
 }
