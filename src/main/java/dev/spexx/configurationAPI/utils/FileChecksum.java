@@ -58,7 +58,7 @@ public final class FileChecksum {
      *                       <li>an I/O error occurs during reading</li>
      *                   </ul>
      */
-    public static @NotNull String getSha256Checksum(File file) throws Exception {
+    public static @NotNull String computeSha256(File file) throws Exception {
         MessageDigest digest = MessageDigest.getInstance("SHA-256");
 
         try (InputStream fis = new FileInputStream(file)) {

@@ -28,7 +28,7 @@ public class YamlConfig {
 
     private final @NotNull File file;
 
-    private @NotNull YamlConfiguration cached = new YamlConfiguration();
+    private volatile @NotNull YamlConfiguration cached = new YamlConfiguration();
 
     /**
      * Cached SHA-256 checksum of the configuration file.
@@ -45,7 +45,7 @@ public class YamlConfig {
      *
      * <p>This field is updated internally and should be treated as read-only.</p>
      */
-    private String cachedChecksum = null;
+    private volatile String cachedChecksum = null;
 
     /**
      * Creates a new YAML configuration wrapper.
@@ -102,8 +102,9 @@ public class YamlConfig {
 
         // try to generate checksum
         try {
-            this.cachedChecksum = FileChecksum.getSha256Checksum(file);
+            this.cachedChecksum = FileChecksum.computeSha256(file);
         } catch (Exception e) {
+            e.printStackTrace(); // log the exception
             this.cachedChecksum = null;
         }
 
@@ -167,6 +168,10 @@ public class YamlConfig {
     /**
      * Returns the cached configuration.
      *
+     * <p>
+     * Modifications affect the cached configuration directly.
+     * Don't forget to save the cached config after you've made changes.
+     * </p>
      * <p>This method does not perform any file I/O.</p>
      *
      * @return the cached {@link YamlConfiguration}

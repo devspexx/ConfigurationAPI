@@ -52,6 +52,19 @@ public class YamlConfigWatcher {
      */
     private final Map<Path, Long> lastModified = new ConcurrentHashMap<>();
 
+    /**
+     * Maps {@link WatchKey} instances to their corresponding directory {@link Path}.
+     *
+     * <p>This reverse mapping allows constant-time (O(1)) resolution of a directory
+     * from a {@link WatchKey}, avoiding linear scans over registered directories.</p>
+     *
+     * <p>The map is populated when directories are registered and cleaned up when
+     * {@link WatchKey}s become invalid.</p>
+     *
+     * @since 1.3.0
+     */
+    private final @NotNull Map<WatchKey, Path> watchKeys = new ConcurrentHashMap<>();
+
     private volatile boolean running = false;
 
     /**
@@ -95,11 +108,16 @@ public class YamlConfigWatcher {
         try {
             directories.computeIfAbsent(directory, dir -> {
                 try {
-                    return dir.register(
+                    WatchKey key = dir.register(
                             watchService,
                             StandardWatchEventKinds.ENTRY_MODIFY,
                             StandardWatchEventKinds.ENTRY_DELETE
                     );
+
+                    // for reverse mapping
+                    watchKeys.put(key, dir);
+
+                    return key;
                 } catch (IOException e) {
                     throw new RuntimeException(e);
                 }
@@ -153,6 +171,9 @@ public class YamlConfigWatcher {
      * @since 1.3.0
      */
     private void run() {
+        var scheduler = Bukkit.getScheduler();
+        var pluginManager = Bukkit.getPluginManager();
+
         while (running) {
             WatchKey key;
 
@@ -162,15 +183,7 @@ public class YamlConfigWatcher {
                 return;
             }
 
-            Path dir = null;
-
-            for (Map.Entry<Path, WatchKey> entry : directories.entrySet()) {
-                if (entry.getValue().equals(key)) {
-                    dir = entry.getKey();
-                    break;
-                }
-            }
-
+            @Nullable Path dir = watchKeys.get(key);
             if (dir == null) {
                 key.reset();
                 continue;
@@ -196,8 +209,9 @@ public class YamlConfigWatcher {
                     @Nullable String newChecksum;
 
                     try {
-                        newChecksum = FileChecksum.getSha256Checksum(config.getFile());
+                        newChecksum = FileChecksum.computeSha256(config.getFile());
                     } catch (Exception e) {
+                        e.printStackTrace();
                         continue;
                     }
 
@@ -218,20 +232,18 @@ public class YamlConfigWatcher {
                     try {
                         config.reload();
 
-                        // get updated checksum
                         String updatedChecksum = config.getCachedChecksum();
 
-                        // Fire event on main thread
-                        Bukkit.getScheduler().runTask(javaPlugin, () -> {
-                            Bukkit.getPluginManager().callEvent(
-                                    new ConfigReloadEvent(
-                                            config.getFile().getName(),
-                                            config.get(),
-                                            oldChecksum,
-                                            updatedChecksum
-                                    )
-                            );
-                        });
+                        scheduler.runTask(javaPlugin, () ->
+                                pluginManager.callEvent(
+                                        new ConfigReloadEvent(
+                                                config.getFile().getName(),
+                                                config.get(),
+                                                oldChecksum,
+                                                updatedChecksum
+                                        )
+                                )
+                        );
 
                     } catch (Exception e) {
                         e.printStackTrace();
@@ -239,7 +251,14 @@ public class YamlConfigWatcher {
                 }
             }
 
-            key.reset();
+            boolean valid = key.reset();
+
+            if (!valid) {
+                Path removed = watchKeys.remove(key);
+                if (removed != null) {
+                    directories.remove(removed);
+                }
+            }
         }
     }
 }
