@@ -1,5 +1,7 @@
-![Build](https://github.com/devspexx/ConfigurationAPI/actions/workflows/maven.yml/badge.svg)
-[![CodeFactor](https://www.codefactor.io/repository/github/devspexx/configurationapi/badge)](https://www.codefactor.io/repository/github/devspexx/configurationapi)
+[![Java CI with Maven](https://github.com/devspexx/ConfigurationAPI/actions/workflows/maven.yml/badge.svg)](https://github.com/devspexx/CentralDatabase/actions/workflows/maven.yml)
+[![Code Factor](https://img.shields.io/codefactor/grade/github/devspexx/ConfigurationAPI?label=Code%20Factor&style=flat)](https://www.codefactor.io/repository/github/devspexx/ConfigurationAPI)
+![Latest Release](https://img.shields.io/github/v/release/devspexx/ConfigurationAPI?label=Latest%20Release&style=flat)
+
 
 ## ConfigurationAPI
 
