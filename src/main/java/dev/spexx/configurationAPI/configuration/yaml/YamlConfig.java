@@ -4,7 +4,6 @@ import dev.spexx.configurationAPI.exceptions.ConfigException;
 import dev.spexx.configurationAPI.exceptions.ConfigFileException;
 import dev.spexx.configurationAPI.exceptions.ConfigParseException;
 import dev.spexx.configurationAPI.exceptions.ConfigPermissionException;
-import dev.spexx.configurationAPI.file.PermissionChecker;
 import dev.spexx.configurationAPI.utils.FileChecksum;
 import org.bukkit.configuration.InvalidConfigurationException;
 import org.bukkit.configuration.file.YamlConfiguration;
@@ -82,8 +81,7 @@ public class YamlConfig {
             throw new ConfigFileException(file, "File does not exist. Did you forget to call create()?");
         }
 
-        PermissionChecker checker = new PermissionChecker(file);
-        if (!checker.canRead()) {
+        if (!file.canRead()) {
             throw new ConfigPermissionException(file, "read");
         }
 
@@ -153,8 +151,7 @@ public class YamlConfig {
      */
     public void save() throws ConfigFileException, ConfigPermissionException {
 
-        PermissionChecker checker = new PermissionChecker(file);
-        if (!checker.canWrite()) {
+        if (!file.canWrite()) {
             throw new ConfigPermissionException(file, "write");
         }
 
