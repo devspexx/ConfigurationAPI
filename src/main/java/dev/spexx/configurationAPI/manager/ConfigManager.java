@@ -189,21 +189,9 @@ public class ConfigManager {
     /**
      * Retrieves a configuration by a raw file path string.
      *
-     * <p><b>⚠ WARNING:</b> This method is considered unsafe and should only be used
-     * in advanced scenarios.</p>
-     *
      * <p>The provided path may be relative (e.g. {@code plugins/MyPlugin/config.yml})
      * or absolute. Relative paths are resolved against the JVM working directory,
      * which may vary depending on the environment.</p>
-     *
-     * <p>Incorrect usage can lead to:
-     * <ul>
-     *     <li>Duplicate registrations due to path mismatch</li>
-     *     <li>Failure to resolve the intended configuration</li>
-     *     <li>Platform-specific inconsistencies</li>
-     * </ul>
-     *
-     * <p>It is strongly recommended to use {@link #get(File)} instead.</p>
      *
      * @param path the raw file path (relative or absolute)
      * @return the registered {@link YamlConfig}
