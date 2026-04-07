@@ -4,6 +4,7 @@ import dev.spexx.configurationAPI.configuration.yaml.YamlConfig;
 import dev.spexx.configurationAPI.configuration.yaml.YamlConfigWatcher;
 import dev.spexx.configurationAPI.exceptions.ConfigException;
 import org.bukkit.plugin.java.JavaPlugin;
+import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.NotNull;
 
 import java.io.File;
@@ -174,6 +175,45 @@ public class ConfigManager {
      * @since 1.3.0
      */
     public @NotNull YamlConfig get(@NotNull File file) throws ConfigException {
+        String key = file.getAbsolutePath();
+
+        YamlConfig config = configs.get(key);
+
+        if (config == null) {
+            throw new ConfigException("Config not registered: " + key);
+        }
+
+        return config;
+    }
+
+    /**
+     * Retrieves a configuration by a raw file path string.
+     *
+     * <p><b>⚠ WARNING:</b> This method is considered unsafe and should only be used
+     * in advanced scenarios.</p>
+     *
+     * <p>The provided path may be relative (e.g. {@code plugins/MyPlugin/config.yml})
+     * or absolute. Relative paths are resolved against the JVM working directory,
+     * which may vary depending on the environment.</p>
+     *
+     * <p>Incorrect usage can lead to:
+     * <ul>
+     *     <li>Duplicate registrations due to path mismatch</li>
+     *     <li>Failure to resolve the intended configuration</li>
+     *     <li>Platform-specific inconsistencies</li>
+     * </ul>
+     *
+     * <p>It is strongly recommended to use {@link #get(File)} instead.</p>
+     *
+     * @param path the raw file path (relative or absolute)
+     * @return the registered {@link YamlConfig}
+     * @throws ConfigException if no config is registered for the resolved path
+     *
+     * @since 1.3.0
+     */
+    @ApiStatus.Experimental
+    public @NotNull YamlConfig getByPath(@NotNull String path) throws ConfigException {
+        File file = new File(path);
         String key = file.getAbsolutePath();
 
         YamlConfig config = configs.get(key);
