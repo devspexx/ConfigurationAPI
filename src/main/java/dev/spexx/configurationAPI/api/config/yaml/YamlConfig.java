@@ -1,10 +1,10 @@
-package dev.spexx.configurationAPI.configuration.yaml;
+package dev.spexx.configurationAPI.api.config.yaml;
 
-import dev.spexx.configurationAPI.exceptions.ConfigException;
-import dev.spexx.configurationAPI.exceptions.ConfigFileException;
-import dev.spexx.configurationAPI.exceptions.ConfigParseException;
-import dev.spexx.configurationAPI.exceptions.ConfigPermissionException;
-import dev.spexx.configurationAPI.utils.FileChecksum;
+import dev.spexx.configurationAPI.api.exceptions.ConfigException;
+import dev.spexx.configurationAPI.api.exceptions.ConfigFileException;
+import dev.spexx.configurationAPI.api.exceptions.ConfigParseException;
+import dev.spexx.configurationAPI.api.exceptions.ConfigPermissionException;
+import dev.spexx.configurationAPI.api.utils.FileChecksum;
 import org.bukkit.configuration.InvalidConfigurationException;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.jetbrains.annotations.NotNull;

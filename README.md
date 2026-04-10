@@ -54,7 +54,7 @@ both ways.
 #### Full sample (with comments)
 
 ```java
-import dev.spexx.configurationAPI.manager.ConfigManager;
+import dev.spexx.configurationAPI.api.manager.ConfigManager;
 
 // ConfigManager takes a plugin instance, should only
 // be initialized once!
@@ -64,36 +64,45 @@ ConfigManager configManager = new ConfigManager(this);
 // Which means you should NOT use saveDefaultConfig() / saveConfig() 
 // anywhere in your plugin.
 
-// This is where you want the config from the plugin resources to be saved.
-File myPluginConfigDestination = new File(getDataFolder(), "config.yml");
+        // This is where you want the config from the plugin resources to be saved.
+        File myPluginConfigDestination = new File(getDataFolder(), "config.yml");
 
 // 2nd parameter, "config.yml" is the path inside the jar. Should really leave that as it is, only 
 // change your file name. 3rd parameter is your plugin instance - so we know from which plugin we're 
 // pulling the config.
-configManager.registerFromJar(myPluginConfigDestination, "config.yml", this);
+configManager.
+
+        registerFromJar(myPluginConfigDestination, "config.yml",this);
 
 // I recommend putting all of this in your onEnable, at the end don't forget to
 // actually start the watch service. Note that you can also dynamically create files during
 // runtime, you don't have to do everything in onEnable.
-manager.start();
+manager.
 
-// Sample 2 - registering custom yaml files, except not from plugin jar
+        start();
+
+        // Sample 2 - registering custom yaml files, except not from plugin jar
 // This is fairly simple!
-YamlConfig myCustomConfig = manager.register(
-        new File(getDataFolder(), "data.yml")
-);
- 
+        YamlConfig myCustomConfig = manager.register(
+                new File(getDataFolder(), "data.yml")
+        );
+
 // What you're doing here is creating a file, in your plugin folder - getDataFolder(),
 // and you're naming it 'data.yml', that's about it.
 // You can write to it:
-myCustomConfig.get().set("hello", "world");
+myCustomConfig.
 
-// Read from it (get() - returns the latest internally cached config,
+        get().
+
+        set("hello","world");
+
+        // Read from it (get() - returns the latest internally cached config,
 // basically, the latest config that matches the file on your disk)
 // with get(), you get raw YamlConfiguration access, so you're able to do
 // anything. If you do change anything in the file don't forget to
 // save it in the end: myCustomConfig.save(), api will handle the rest.
-@Nullable String myValue = myCustomConfig.get().getString("something.here");
+        @Nullable
+        String myValue = myCustomConfig.get().getString("something.here");
 
 // ---
 // If you find this confusing, there is javadoc at every method / public variable. So you won't be lost!
