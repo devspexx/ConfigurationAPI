@@ -3,7 +3,10 @@ description: "Lightweight YAML config API with automatic reload and event-driven
 version: '1.3.0'
 
 main: dev.spexx.configurationAPI.ConfigurationAPI
-api-version: '1.21.11'
+bootstrapper: dev.spexx.configurationAPI.bootstrap.ConfigurationBootstrap
+loader: dev.spexx.configurationAPI.bootstrap.ConfigurationLoader
+
+api-version: '21.1.1'
 load: POSTWORLD
 
 authors: [ Spexx ]

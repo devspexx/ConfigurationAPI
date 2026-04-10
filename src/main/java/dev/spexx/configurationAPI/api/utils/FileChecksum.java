@@ -1,4 +1,4 @@
-package dev.spexx.configurationAPI.utils;
+package dev.spexx.configurationAPI.api.utils;
 
 import org.jetbrains.annotations.NotNull;
 

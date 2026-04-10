@@ -1,8 +1,8 @@
-package dev.spexx.configurationAPI.configuration.yaml;
+package dev.spexx.configurationAPI.api.config.yaml;
 
-import dev.spexx.configurationAPI.events.ConfigReloadEvent;
-import dev.spexx.configurationAPI.exceptions.ConfigException;
-import dev.spexx.configurationAPI.utils.FileChecksum;
+import dev.spexx.configurationAPI.api.event.ConfigReloadEvent;
+import dev.spexx.configurationAPI.api.exceptions.ConfigException;
+import dev.spexx.configurationAPI.api.utils.FileChecksum;
 import org.bukkit.Bukkit;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.jetbrains.annotations.NotNull;

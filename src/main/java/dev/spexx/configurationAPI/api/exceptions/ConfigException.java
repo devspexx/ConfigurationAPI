@@ -1,4 +1,4 @@
-package dev.spexx.configurationAPI.exceptions;
+package dev.spexx.configurationAPI.api.exceptions;
 
 import org.jetbrains.annotations.NotNull;
 

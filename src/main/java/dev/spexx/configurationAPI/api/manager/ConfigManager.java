@@ -1,8 +1,8 @@
-package dev.spexx.configurationAPI.manager;
+package dev.spexx.configurationAPI.api.manager;
 
-import dev.spexx.configurationAPI.configuration.yaml.YamlConfig;
-import dev.spexx.configurationAPI.configuration.yaml.YamlConfigWatcher;
-import dev.spexx.configurationAPI.exceptions.ConfigException;
+import dev.spexx.configurationAPI.api.config.yaml.YamlConfig;
+import dev.spexx.configurationAPI.api.config.yaml.YamlConfigWatcher;
+import dev.spexx.configurationAPI.api.exceptions.ConfigException;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.NotNull;

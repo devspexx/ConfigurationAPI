@@ -1,4 +1,4 @@
-package dev.spexx.configurationAPI.events;
+package dev.spexx.configurationAPI.api.event;
 
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.event.Event;
