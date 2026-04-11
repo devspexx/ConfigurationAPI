@@ -29,21 +29,19 @@ and developer-friendly.
 - Direct access to Bukkit’s `YamlConfiguration` for full control when needed.
 
 ### 1.2 Additional Features
-
-- Load configs directly from your plugin JAR:
-    - `registerFromJar(File target, String resourcePath, JavaPlugin plugin)`
-
-- Create custom config files:
-    - `register(File file)`
-
-- Register configs with default values (only applied if missing):
-    - `registerWithDefaults(File file, Map<String, Object> defaults)`
-
-- Retrieve configs safely:
-    - `get(File file)`
-    - `getByPath(String path)` 
-    - `isRegistered(File file)`
-
+Load configs directly from your plugin JAR:
+- `registerFromJar(File target, String resourcePath, JavaPlugin plugin)`
+    
+Create custom config files:
+- `register(File file)`
+    
+Register configs with default values (only applied if missing):
+- `registerWithDefaults(File file, Map<String, Object> defaults)`
+    
+Retrieve configs safely:
+- `get(File file)`
+- `getByPath(String path)` 
+- `isRegistered(File file)`
 
 ## 2. Installation
 
