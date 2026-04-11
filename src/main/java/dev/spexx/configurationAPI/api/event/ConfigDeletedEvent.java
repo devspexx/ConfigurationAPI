@@ -4,29 +4,33 @@ import org.bukkit.event.Event;
 import org.bukkit.event.HandlerList;
 import org.jetbrains.annotations.NotNull;
 
+import java.nio.file.Path;
+
 /**
  * Fired when a watched configuration file is deleted.
  *
- * <p>The event contains the last known checksum before deletion.</p>
+ * <p>This event is triggered when the underlying file is removed
+ * from the file system.</p>
  *
- * @since 1.3.0
+ * @since 1.3.2
  */
 public class ConfigDeletedEvent extends Event {
 
     private static final HandlerList HANDLERS = new HandlerList();
 
     private final @NotNull String configName;
-    private final String checksum;
+    private final @NotNull Path path;
 
     /**
      * Creates a new deletion event.
      *
-     * @param configName the name of the deleted configuration
-     * @param checksum   the last known checksum before deletion
+     * @param configName the configuration file name
+     * @param path       the absolute path of the deleted file
      */
-    public ConfigDeletedEvent(@NotNull String configName, String checksum) {
+    public ConfigDeletedEvent(@NotNull String configName,
+                              @NotNull Path path) {
         this.configName = configName;
-        this.checksum = checksum;
+        this.path = path;
     }
 
     /**
@@ -39,21 +43,21 @@ public class ConfigDeletedEvent extends Event {
     }
 
     /**
-     * Returns the configuration name.
+     * Returns the configuration file name.
      *
-     * @return the configuration file name
+     * @return the file name
      */
     public @NotNull String getConfigName() {
         return configName;
     }
 
     /**
-     * Returns the last known checksum.
+     * Returns the absolute path of the deleted file.
      *
-     * @return checksum or null if unavailable
+     * @return the file path
      */
-    public String getChecksum() {
-        return checksum;
+    public @NotNull Path getPath() {
+        return path;
     }
 
     @Override

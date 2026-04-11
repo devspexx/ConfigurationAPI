@@ -184,14 +184,13 @@ public class YamlConfigWatcher {
                 // DELETE
                 if (event.kind() == StandardWatchEventKinds.ENTRY_DELETE) {
 
-                    String checksum = config.getCachedChecksum();
                     String name = config.getFile().getName();
 
                     watchedFiles.remove(changed);
 
                     scheduler.runTask(javaPlugin, () ->
                             pluginManager.callEvent(
-                                    new ConfigDeletedEvent(name, checksum)
+                                    new ConfigDeletedEvent(name, changed)
                             )
                     );
 
@@ -201,6 +200,13 @@ public class YamlConfigWatcher {
                 // MODIFY / CREATE
                 if (event.kind() == StandardWatchEventKinds.ENTRY_MODIFY
                         || event.kind() == StandardWatchEventKinds.ENTRY_CREATE) {
+
+                    Path filePath = config.getFile().toPath();
+
+                    // skip if file was deleted
+                    if (!Files.exists(filePath)) {
+                        continue;
+                    }
 
                     @Nullable String oldChecksum = config.getCachedChecksum();
                     @Nullable String newChecksum;

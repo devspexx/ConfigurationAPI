@@ -4,8 +4,8 @@ version: '1.3.2'
 
 main: dev.spexx.configurationAPI.ConfigurationAPI
 
-api-version: '21.1.1'
-load: POSTWORLD
+api-version: '1.21.11'
+load: STARTUP
 
 authors: [ Spexx ]
 website: www.spexx.dev
