@@ -1,4 +1,4 @@
-name: ConfigurationAPI
+name: ConfigurationProvider
 description: "Lightweight YAML config API with automatic reload and event-driven updates."
 version: '1.3.2'
 

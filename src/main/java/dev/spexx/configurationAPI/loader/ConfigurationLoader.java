@@ -5,7 +5,7 @@ import io.papermc.paper.plugin.loader.PluginLoader;
 import org.jetbrains.annotations.NotNull;
 
 /**
- * Classpath loader for the ConfigurationAPI plugin.
+ * Classpath loader for the ConfigurationProvider plugin.
  *
  * <p>This class is responsible for modifying the plugin's classpath
  * during the loading phase.</p>

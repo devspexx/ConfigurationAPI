@@ -3,7 +3,7 @@ package dev.spexx.configurationAPI;
 import org.bukkit.plugin.java.JavaPlugin;
 
 /**
- * Main plugin entry point for ConfigurationAPI.
+ * Main plugin entry point for ConfigurationProvider.
  *
  * <p>This class is managed by the Bukkit/Paper plugin system and is responsible
  * for initializing the plugin lifecycle.</p>

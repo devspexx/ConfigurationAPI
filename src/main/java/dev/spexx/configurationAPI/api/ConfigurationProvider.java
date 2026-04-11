@@ -9,7 +9,7 @@ import org.jetbrains.annotations.NotNull;
  *
  * @since 1.3.2
  */
-public class ConfigurationAPI {
+public class ConfigurationProvider {
 
     /**
      * The internal configuration manager instance.
@@ -28,7 +28,7 @@ public class ConfigurationAPI {
      *
      * @since 1.3.2
      */
-    public ConfigurationAPI(@NotNull JavaPlugin javaPlugin) {
+    public ConfigurationProvider(@NotNull JavaPlugin javaPlugin) {
         this.configManager = new ConfigManager(javaPlugin);
     }
 

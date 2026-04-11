@@ -5,7 +5,7 @@ import io.papermc.paper.plugin.bootstrap.PluginBootstrap;
 import org.jetbrains.annotations.NotNull;
 
 /**
- * Bootstrap entry point for the ConfigurationAPI plugin.
+ * Bootstrap entry point for the ConfigurationProvider plugin.
  *
  * <p>This class is invoked during the early plugin bootstrap phase,
  * before the plugin is fully loaded and enabled.</p>
