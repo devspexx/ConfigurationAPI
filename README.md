@@ -2,7 +2,7 @@
 [![Code Factor](https://img.shields.io/codefactor/grade/github/devspexx/ConfigurationAPI?label=Code%20Factor&style=flat)](https://www.codefactor.io/repository/github/devspexx/ConfigurationAPI)
 ![Latest Release](https://img.shields.io/github/v/release/devspexx/ConfigurationAPI?label=Latest%20Release&style=flat)
 
-<img width="80" alt="ConfigurationAPI-Logo" src="https://github.com/user-attachments/assets/76f0e059-d4c9-4f39-b033-61485bb2c45b" />
+<img width="100" alt="ConfigurationAPI-Logo" src="https://github.com/user-attachments/assets/76f0e059-d4c9-4f39-b033-61485bb2c45b" />
 
 ## 1. Overview
 
