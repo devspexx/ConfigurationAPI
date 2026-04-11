@@ -92,21 +92,18 @@ public class ConfigManager {
      * @param file         the target configuration file on disk
      * @param resourcePath the path to the resource inside the plugin JAR
      * @param plugin       the plugin used to access the resource
-     *
      * @return the managed {@link YamlConfig} instance
-     *
      * @throws ConfigException if:
-     * <ul>
-     *     <li>the configuration is already registered</li>
-     *     <li>the resource cannot be found in the JAR</li>
-     *     <li>the file cannot be copied or initialized</li>
-     * </ul>
-     *
+     *                         <ul>
+     *                             <li>the configuration is already registered</li>
+     *                             <li>the resource cannot be found in the JAR</li>
+     *                             <li>the file cannot be copied or initialized</li>
+     *                         </ul>
      * @since 1.3.0
      */
     public @NotNull YamlConfig registerFromJar(@NotNull File file,
-                                @NotNull String resourcePath,
-                                @NotNull JavaPlugin plugin) throws ConfigException {
+                                               @NotNull String resourcePath,
+                                               @NotNull JavaPlugin plugin) throws ConfigException {
 
         String key = getNormalizedPath(file);
 
@@ -128,6 +125,58 @@ public class ConfigManager {
     }
 
     /**
+     * Registers a configuration file and applies default values if missing.
+     *
+     * <p>If the file does not exist, it is created and loaded. The provided default
+     * values are then applied only to keys that are not already present in the file.</p>
+     *
+     * <p>Existing values are never overwritten.</p>
+     *
+     * @param file the configuration file
+     * @param defaults a map of default key-value pairs to apply if missing
+     * @return the managed {@link YamlConfig} instance
+     *
+     * @throws ConfigException if:
+     * <ul>
+     *     <li>the configuration is already registered</li>
+     *     <li>initialization or saving fails</li>
+     * </ul>
+     *
+     * @since 1.3.3
+     */
+    public @NotNull YamlConfig registerWithDefaults(
+            @NotNull File file,
+            @NotNull Map<String, Object> defaults
+    ) throws ConfigException {
+
+        String key = getNormalizedPath(file);
+
+        if (isRegistered(file)) {
+            throw new ConfigException("Config already registered: " + key);
+        }
+
+        YamlConfig config = initialize(file);
+
+        boolean changed = false;
+
+        for (Map.Entry<String, Object> entry : defaults.entrySet()) {
+            if (!config.get().contains(entry.getKey())) {
+                config.get().set(entry.getKey(), entry.getValue());
+                changed = true;
+            }
+        }
+
+        if (changed) {
+            config.save();
+        }
+
+        configs.put(key, config);
+        watcher.watch(config);
+
+        return config;
+    }
+
+    /**
      * Initializes a {@link YamlConfig} instance for the given file.
      *
      * <p>If the file does not exist, it is created. The configuration is then
@@ -135,9 +184,7 @@ public class ConfigManager {
      *
      * @param file the configuration file to initialize
      * @return the initialized {@link YamlConfig}
-     *
      * @throws ConfigException if file creation fails or the path is invalid
-     *
      * @since 1.3.0
      */
     private @NotNull YamlConfig initialize(File file) {
@@ -212,10 +259,8 @@ public class ConfigManager {
      * @param path the raw file path (relative or absolute)
      * @return the registered {@link YamlConfig}
      * @throws ConfigException if no config is registered for the resolved path
-     *
      * @since 1.3.0
      */
-    @ApiStatus.Experimental
     public @NotNull YamlConfig getByPath(@NotNull String path) throws ConfigException {
         File file = new File(path);
         String key = getNormalizedPath(file);
@@ -236,7 +281,6 @@ public class ConfigManager {
      *
      * @param file the configuration file
      * @return {@code true} if registered, {@code false} otherwise
-     *
      * @since 1.3.2
      */
     public boolean isRegistered(@NotNull File file) {
@@ -270,7 +314,6 @@ public class ConfigManager {
      *
      * @param file the file
      * @return normalized absolute path string
-     *
      * @since 1.3.2
      */
     private @NotNull String getNormalizedPath(@NotNull File file) {

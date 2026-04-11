@@ -25,7 +25,6 @@ public class ConfigurationProvider {
      * and interacting with the Bukkit API.</p>
      *
      * @param javaPlugin the owning plugin instance
-     *
      * @since 1.3.2
      */
     public ConfigurationProvider(@NotNull JavaPlugin javaPlugin) {
@@ -39,7 +38,6 @@ public class ConfigurationProvider {
      * and file watching functionality.</p>
      *
      * @return the {@link ConfigManager} instance
-     *
      * @since 1.3.2
      */
     public @NotNull ConfigManager api() {

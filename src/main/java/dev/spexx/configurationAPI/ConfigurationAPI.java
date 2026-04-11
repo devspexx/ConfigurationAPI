@@ -20,5 +20,6 @@ public final class ConfigurationAPI extends JavaPlugin {
      *
      * <p>This constructor is called by the server and should not be used manually.</p>
      */
-    public ConfigurationAPI() { }
+    public ConfigurationAPI() {
+    }
 }

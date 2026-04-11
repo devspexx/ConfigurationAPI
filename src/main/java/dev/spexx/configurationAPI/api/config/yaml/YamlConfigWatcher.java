@@ -28,18 +28,14 @@ import java.util.logging.Level;
  */
 public class YamlConfigWatcher {
 
+    private static final long DEBOUNCE_MS = 200;
     private final @NotNull JavaPlugin javaPlugin;
     private final @NotNull WatchService watchService;
-
-    private Thread watcherThread;
-
-    private static final long DEBOUNCE_MS = 200;
-
     private final @NotNull Map<Path, WatchKey> directories = new ConcurrentHashMap<>();
     private final @NotNull Map<Path, YamlConfig> watchedFiles = new ConcurrentHashMap<>();
     private final @NotNull Map<Path, Long> lastModified = new ConcurrentHashMap<>();
     private final @NotNull Map<WatchKey, Path> watchKeys = new ConcurrentHashMap<>();
-
+    private Thread watcherThread;
     private volatile boolean running = false;
 
     /**
@@ -56,6 +52,7 @@ public class YamlConfigWatcher {
             throw new ConfigException("Failed to initialize WatchService", e);
         }
     }
+
     /**
      * Registers a configuration for monitoring.
      *
@@ -137,12 +134,14 @@ public class YamlConfigWatcher {
 
         try {
             watchService.close();
-        } catch (IOException ignored) {}
+        } catch (IOException ignored) {
+        }
 
         if (watcherThread != null) {
             watcherThread.interrupt();
         }
     }
+
     /**
      * Returns whether the watcher is running.
      *
