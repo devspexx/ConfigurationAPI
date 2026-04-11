@@ -81,7 +81,7 @@ ConfigurationAPI must be available at runtime. You can choose one of the followi
 
 > 💡 If you do not shade it, make sure the ConfigurationAPI plugin is present on the server.
 
-### 3. API Usage
+## 3. API Usage
 How do I integrate ConfigurationAPI into my plugin?
 
 ### 3.1 Initialize the API
