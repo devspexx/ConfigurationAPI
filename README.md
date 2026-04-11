@@ -94,7 +94,7 @@ import org.jetbrains.annotations.NotNull;
 
 public final class MyPlugin extends JavaPlugin {
 
-    private final ConfigurationProvider configurationProvider;
+    private ConfigurationProvider configurationProvider;
 
     public @NotNull ConfigManager getConfigurationProvider() {
         return configurationProvider.api();
@@ -121,7 +121,7 @@ public final class MyPlugin extends JavaPlugin {
 #### 3.2 Working with Configs
 Once the API is initialized, you can create, access, and modify configuration files.
 
-##### 3.2.1 Register a custom config
+#### 3.2.1 Register a custom config
 
 ```java
 @NotNull YamlConfig dataConfig = getConfigurationProvider().register(
@@ -182,7 +182,7 @@ public void onReload(@NotNull ConfigReloadedEvent event) {
 - Fired only when file content actually changes
 - Runs on the main thread
 
-##### 3.2.6 Recommended pattern (cache values)
+#### 3.2.6 Recommended pattern (cache values)
 
 ```java
 import dev.spexx.configurationAPI.api.event.ConfigReloadedEvent;
