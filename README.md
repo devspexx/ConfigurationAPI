@@ -84,7 +84,7 @@ ConfigurationAPI must be available at runtime. You can choose one of the followi
 ### 3. API Usage
 How do I integrate ConfigurationAPI into my plugin?
 
-#### 3.1 Initialize the API
+### 3.1 Initialize the API
 You should initialize the API inside your plugin's `onEnable()` method.
 
 ```java
@@ -118,7 +118,7 @@ public final class MyPlugin extends JavaPlugin {
 > 💡 You can register configs even after the file watcher has started. 
 > <b>Newly registered configs will be picked up and tracked automatically</b>. 
 
-#### 3.2 Working with Configs
+### 3.2 Working with Configs
 Once the API is initialized, you can create, access, and modify configuration files.
 
 #### 3.2.1 Register a custom config
@@ -214,11 +214,11 @@ public class MyListener implements Listener {
 - Avoid reading config on every event
 - Cache values and refresh on reload
 
-### 4 Events
+## 4 Events
 ConfigurationAPI provides built-in events that allow you to react to configuration changes in real-time.
 > 💡 All events are fired on the **main server thread**.
 
-#### 4.1 ConfigReloadedEvent
+### 4.1 ConfigReloadedEvent
 Fired when a configuration file is modified and successfully reloaded.
 
 | Method             | Description                                  |
@@ -231,7 +231,7 @@ Fired when a configuration file is modified and successfully reloaded.
 - Triggered only when file content actually changes (checksum-based).
 
 
-#### 4.2 ConfigDeletedEvent
+### 4.2 ConfigDeletedEvent
 Fired when a tracked configuration file is deleted.
 
 | Method             | Description                                  |
@@ -242,7 +242,7 @@ Fired when a tracked configuration file is deleted.
 - Fired when the file is removed from disk
 - Config is automatically untracked
 
-#### 4.3 ConfigRegisteredEvent
+### 4.3 ConfigRegisteredEvent
 Fired when a configuration is registered and loaded.
 
 | Method            | Description                                  |
@@ -254,7 +254,7 @@ Fired when a configuration is registered and loaded.
 - Fired after registration and initial load  
 - Useful for initialization logic
 
-#### 4.4 Example usage of events
+### 4.4 Example usage of events
 
 ```java
 import dev.spexx.configurationAPI.api.event.ConfigDeletedEvent;
@@ -285,7 +285,7 @@ public class ConfigListener implements Listener {
 - Delete events automatically stop tracking the file
 - Register events fire once per config registration
 
-### 5. Contributing
+## 5. Contributing
 
 Pull requests are welcome!
 
