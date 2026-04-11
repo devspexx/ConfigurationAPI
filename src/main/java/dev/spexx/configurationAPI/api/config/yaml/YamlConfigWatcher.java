@@ -1,6 +1,8 @@
 package dev.spexx.configurationAPI.api.config.yaml;
 
-import dev.spexx.configurationAPI.api.event.ConfigReloadEvent;
+import dev.spexx.configurationAPI.api.event.ConfigDeletedEvent;
+import dev.spexx.configurationAPI.api.event.ConfigRegisteredEvent;
+import dev.spexx.configurationAPI.api.event.ConfigReloadedEvent;
 import dev.spexx.configurationAPI.api.exceptions.ConfigException;
 import dev.spexx.configurationAPI.api.utils.FileChecksum;
 import org.bukkit.Bukkit;
@@ -12,67 +14,35 @@ import java.io.IOException;
 import java.nio.file.*;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.logging.Level;
 
 /**
- * Watches {@link YamlConfig} files for changes.
+ * Watches registered {@link YamlConfig} files for changes.
  *
- * <p>Registered configurations are monitored for file system modifications.
- * Files located in the same directory share a single {@link WatchKey}.</p>
+ * <p>Only files registered through this watcher are monitored.
+ * File system events for unrelated files are ignored.</p>
  *
- * <p>Modification events are debounced to prevent duplicate reloads.</p>
+ * <p>Events are dispatched on the main server thread.</p>
  *
  * @since 1.3.0
  */
 public class YamlConfigWatcher {
 
+    private static final long DEBOUNCE_MS = 200;
     private final @NotNull JavaPlugin javaPlugin;
-
     private final @NotNull WatchService watchService;
-
-    /**
-     * Maps directories to their {@link WatchKey}.
-     *
-     * <p>Each directory is registered only once, even if multiple files within it are watched.</p>
-     *
-     * @since 1.3.0
-     */
     private final @NotNull Map<Path, WatchKey> directories = new ConcurrentHashMap<>();
-
-    /**
-     * Maps absolute file paths to their corresponding {@link YamlConfig}.
-     *
-     * @since 1.3.0
-     */
-    private final Map<Path, YamlConfig> watchedFiles = new ConcurrentHashMap<>();
-
-    /**
-     * Tracks last modification timestamps used for debounce logic.
-     *
-     * @since 1.3.0
-     */
-    private final Map<Path, Long> lastModified = new ConcurrentHashMap<>();
-
-    /**
-     * Maps {@link WatchKey} instances to their corresponding directory {@link Path}.
-     *
-     * <p>This reverse mapping allows constant-time (O(1)) resolution of a directory
-     * from a {@link WatchKey}, avoiding linear scans over registered directories.</p>
-     *
-     * <p>The map is populated when directories are registered and cleaned up when
-     * {@link WatchKey}s become invalid.</p>
-     *
-     * @since 1.3.0
-     */
+    private final @NotNull Map<Path, YamlConfig> watchedFiles = new ConcurrentHashMap<>();
+    private final @NotNull Map<Path, Long> lastModified = new ConcurrentHashMap<>();
     private final @NotNull Map<WatchKey, Path> watchKeys = new ConcurrentHashMap<>();
-
+    private Thread watcherThread;
     private volatile boolean running = false;
 
     /**
      * Creates a new watcher instance.
      *
-     * @param javaPlugin the plugin instance used for scheduling synchronous tasks
-     * @throws ConfigException if the watcher cannot be initialized
-     * @since 1.3.0
+     * @param javaPlugin the plugin used for scheduling and logging
+     * @throws ConfigException if initialization fails
      */
     public YamlConfigWatcher(@NotNull JavaPlugin javaPlugin) throws ConfigException {
         this.javaPlugin = javaPlugin;
@@ -84,17 +54,15 @@ public class YamlConfigWatcher {
     }
 
     /**
-     * Registers a configuration for watching.
+     * Registers a configuration for monitoring.
      *
-     * <p>If multiple configurations are located in the same directory,
-     * the directory is registered only once.</p>
+     * <p>Only registered configurations will produce events.</p>
      *
      * @param config the configuration to watch
      * @throws ConfigException if already registered or invalid
-     * @since 1.3.0
      */
     public void watch(@NotNull YamlConfig config) throws ConfigException {
-        Path path = config.getFile().toPath().toAbsolutePath();
+        Path path = config.getFile().toPath().toAbsolutePath().normalize();
 
         if (watchedFiles.containsKey(path)) {
             throw new ConfigException("File is already being watched: " + path);
@@ -111,19 +79,30 @@ public class YamlConfigWatcher {
                     WatchKey key = dir.register(
                             watchService,
                             StandardWatchEventKinds.ENTRY_MODIFY,
-                            StandardWatchEventKinds.ENTRY_DELETE
+                            StandardWatchEventKinds.ENTRY_DELETE,
+                            StandardWatchEventKinds.ENTRY_CREATE
                     );
 
-                    // for reverse mapping
                     watchKeys.put(key, dir);
-
                     return key;
+
                 } catch (IOException e) {
                     throw new RuntimeException(e);
                 }
             });
 
             watchedFiles.put(path, config);
+
+            // REGISTER EVENT
+            Bukkit.getScheduler().runTask(javaPlugin, () ->
+                    Bukkit.getPluginManager().callEvent(
+                            new ConfigRegisteredEvent(
+                                    config.getFile().getName(),
+                                    config.get(),
+                                    config.getCachedChecksum()
+                            )
+                    )
+            );
 
         } catch (RuntimeException e) {
             throw new ConfigException("Failed to register file watcher: " + path, e);
@@ -134,7 +113,6 @@ public class YamlConfigWatcher {
      * Starts the watcher thread.
      *
      * @throws ConfigException if already running
-     * @since 1.3.0
      */
     public void start() throws ConfigException {
         if (running) {
@@ -143,15 +121,13 @@ public class YamlConfigWatcher {
 
         running = true;
 
-        Thread thread = new Thread(this::run, "YamlConfigWatcher");
-        thread.setDaemon(true);
-        thread.start();
+        watcherThread = new Thread(this::run, "YamlConfigWatcher");
+        watcherThread.setDaemon(true);
+        watcherThread.start();
     }
 
     /**
-     * Stops the watcher thread.
-     *
-     * @since 1.3.0
+     * Stops the watcher and releases resources.
      */
     public void stop() {
         running = false;
@@ -160,16 +136,21 @@ public class YamlConfigWatcher {
             watchService.close();
         } catch (IOException ignored) {
         }
+
+        if (watcherThread != null) {
+            watcherThread.interrupt();
+        }
     }
 
     /**
-     * Internal watcher loop.
+     * Returns whether the watcher is running.
      *
-     * <p>Resolves {@link WatchKey} instances back to their corresponding directory
-     * and processes events for registered files only.</p>
-     *
-     * @since 1.3.0
+     * @return true if running
      */
+    public boolean isRunning() {
+        return running;
+    }
+
     private void run() {
         var scheduler = Bukkit.getScheduler();
         var pluginManager = Bukkit.getPluginManager();
@@ -190,20 +171,41 @@ public class YamlConfigWatcher {
             }
 
             for (WatchEvent<?> event : key.pollEvents()) {
-                Path changed = dir.resolve((Path) event.context()).toAbsolutePath();
+                Path changed = dir.resolve((Path) event.context())
+                        .toAbsolutePath()
+                        .normalize();
 
-                // null safety
                 YamlConfig config = watchedFiles.get(changed);
                 if (config == null) {
                     continue;
                 }
 
+                // DELETE
                 if (event.kind() == StandardWatchEventKinds.ENTRY_DELETE) {
+
+                    String name = config.getFile().getName();
+
                     watchedFiles.remove(changed);
+
+                    scheduler.runTask(javaPlugin, () ->
+                            pluginManager.callEvent(
+                                    new ConfigDeletedEvent(name, changed)
+                            )
+                    );
+
                     continue;
                 }
 
-                if (event.kind() == StandardWatchEventKinds.ENTRY_MODIFY) {
+                // MODIFY / CREATE
+                if (event.kind() == StandardWatchEventKinds.ENTRY_MODIFY
+                        || event.kind() == StandardWatchEventKinds.ENTRY_CREATE) {
+
+                    Path filePath = config.getFile().toPath();
+
+                    // skip if file was deleted
+                    if (!Files.exists(filePath)) {
+                        continue;
+                    }
 
                     @Nullable String oldChecksum = config.getCachedChecksum();
                     @Nullable String newChecksum;
@@ -211,19 +213,18 @@ public class YamlConfigWatcher {
                     try {
                         newChecksum = FileChecksum.computeSha256(config.getFile());
                     } catch (Exception e) {
-                        e.printStackTrace();
+                        javaPlugin.getLogger().log(Level.SEVERE,
+                                "Failed to compute checksum for " + config.getFile(), e);
                         continue;
                     }
 
-                    // skip if nothing actually changed
                     if (oldChecksum != null && oldChecksum.equals(newChecksum)) {
                         continue;
                     }
 
-                    // debounce
                     long now = System.currentTimeMillis();
                     long last = lastModified.getOrDefault(changed, 0L);
-                    if (now - last < 200) {
+                    if (now - last < DEBOUNCE_MS) {
                         continue;
                     }
 
@@ -236,7 +237,7 @@ public class YamlConfigWatcher {
 
                         scheduler.runTask(javaPlugin, () ->
                                 pluginManager.callEvent(
-                                        new ConfigReloadEvent(
+                                        new ConfigReloadedEvent(
                                                 config.getFile().getName(),
                                                 config.get(),
                                                 oldChecksum,
@@ -246,7 +247,8 @@ public class YamlConfigWatcher {
                         );
 
                     } catch (Exception e) {
-                        e.printStackTrace();
+                        javaPlugin.getLogger().log(Level.SEVERE,
+                                "Failed to reload config: " + config.getFile(), e);
                     }
                 }
             }

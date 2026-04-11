@@ -1,19 +1,24 @@
 package dev.spexx.configurationAPI;
 
 import org.bukkit.plugin.java.JavaPlugin;
+
 /**
- * Main plugin entry point for the ConfigurationAPI.
+ * Main plugin entry point for ConfigurationProvider.
  *
- * <p>Initializes and demonstrates usage of the configuration system.</p>
+ * <p>This class is managed by the Bukkit/Paper plugin system and is responsible
+ * for initializing the plugin lifecycle.</p>
  *
- * @since 1.0.0
+ * <p>It does not expose the API directly. Use the API classes from the
+ * {@code dev.spexx.configurationAPI.api} package instead.</p>
+ *
+ * @since 1.3.1
  */
 public final class ConfigurationAPI extends JavaPlugin {
 
     /**
-     * Creates a new plugin instance.
+     * Creates the plugin instance.
      *
-     * @since 1.0.0
+     * <p>This constructor is called by the server and should not be used manually.</p>
      */
     public ConfigurationAPI() {
     }

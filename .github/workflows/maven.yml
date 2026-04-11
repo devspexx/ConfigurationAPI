@@ -43,7 +43,7 @@ jobs:
       - name: Upload JAR artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ConfigurationAPI
+          name: ConfigurationProvider
           path: target/*.jar
 
       # Optional: GitHub security / dependency tracking
