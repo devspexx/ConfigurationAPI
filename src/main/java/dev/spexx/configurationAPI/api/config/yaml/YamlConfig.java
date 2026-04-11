@@ -102,7 +102,7 @@ public class YamlConfig {
         try {
             this.cachedChecksum = FileChecksum.computeSha256(file);
         } catch (Exception e) {
-            e.printStackTrace(); // log the exception
+            e.printStackTrace();
             this.cachedChecksum = null;
         }
 

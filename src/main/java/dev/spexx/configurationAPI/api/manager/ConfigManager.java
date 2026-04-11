@@ -64,9 +64,9 @@ public class ConfigManager {
      */
     public @NotNull YamlConfig register(@NotNull File file) throws ConfigException {
 
-        String key = file.getAbsolutePath();
+        String key = getNormalizedPath(file);
 
-        if (configs.containsKey(key)) {
+        if (isRegistered(file)) {
             throw new ConfigException("Config already registered: " + key);
         }
 
@@ -80,24 +80,37 @@ public class ConfigManager {
     }
 
     /**
-     * Registers a configuration file using a resource from the plugin JAR.
+     * Registers a configuration file backed by a resource inside the plugin JAR.
      *
-     * <p>If the file does not exist, it is copied from the specified resource path
-     * before being loaded.</p>
+     * <p>If the target file does not exist, it is first created by copying the specified
+     * resource from the plugin JAR. The file is then initialized, loaded, and registered
+     * within this manager.</p>
      *
-     * @param file         the target configuration file
-     * @param resourcePath the path inside the plugin JAR
+     * <p>Once registered, the configuration is tracked and automatically monitored for
+     * changes if the internal watcher is running.</p>
+     *
+     * @param file         the target configuration file on disk
+     * @param resourcePath the path to the resource inside the plugin JAR
      * @param plugin       the plugin used to access the resource
-     * @throws ConfigException if already registered or copy/load fails
+     *
+     * @return the managed {@link YamlConfig} instance
+     *
+     * @throws ConfigException if:
+     * <ul>
+     *     <li>the configuration is already registered</li>
+     *     <li>the resource cannot be found in the JAR</li>
+     *     <li>the file cannot be copied or initialized</li>
+     * </ul>
+     *
      * @since 1.3.0
      */
-    public void registerFromJar(@NotNull File file,
+    public @NotNull YamlConfig registerFromJar(@NotNull File file,
                                 @NotNull String resourcePath,
                                 @NotNull JavaPlugin plugin) throws ConfigException {
 
-        String key = file.getAbsolutePath();
+        String key = getNormalizedPath(file);
 
-        if (configs.containsKey(key)) {
+        if (isRegistered(file)) {
             throw new ConfigException("Config already registered: " + key);
         }
 
@@ -110,6 +123,8 @@ public class ConfigManager {
         configs.put(key, config);
 
         watcher.watch(config);
+
+        return config;
     }
 
     /**
@@ -175,7 +190,8 @@ public class ConfigManager {
      * @since 1.3.0
      */
     public @NotNull YamlConfig get(@NotNull File file) throws ConfigException {
-        String key = file.getAbsolutePath();
+
+        String key = getNormalizedPath(file);
 
         YamlConfig config = configs.get(key);
 
@@ -202,7 +218,7 @@ public class ConfigManager {
     @ApiStatus.Experimental
     public @NotNull YamlConfig getByPath(@NotNull String path) throws ConfigException {
         File file = new File(path);
-        String key = file.getAbsolutePath();
+        String key = getNormalizedPath(file);
 
         YamlConfig config = configs.get(key);
 
@@ -214,12 +230,26 @@ public class ConfigManager {
     }
 
     /**
+     * Checks whether a configuration is registered.
+     *
+     * <p>Lookup is performed using the file's absolute path.</p>
+     *
+     * @param file the configuration file
+     * @return {@code true} if registered, {@code false} otherwise
+     *
+     * @since 1.3.2
+     */
+    public boolean isRegistered(@NotNull File file) {
+        return configs.containsKey(getNormalizedPath(file));
+    }
+
+    /**
      * Starts the internal watcher.
      *
      * @throws ConfigException if already running or fails
      * @since 1.3.0
      */
-    public void start() throws ConfigException {
+    public void startFileWatcher() throws ConfigException {
         watcher.start();
     }
 
@@ -228,7 +258,22 @@ public class ConfigManager {
      *
      * @since 1.3.0
      */
-    public void stop() {
+    public void stopFileWatcher() {
         watcher.stop();
+    }
+
+    /**
+     * Resolves a normalized key for the given file.
+     *
+     * <p>This ensures consistent lookup regardless of relative paths,
+     * redundant segments, or platform differences.</p>
+     *
+     * @param file the file
+     * @return normalized absolute path string
+     *
+     * @since 1.3.2
+     */
+    private @NotNull String getNormalizedPath(@NotNull File file) {
+        return file.toPath().toAbsolutePath().normalize().toString();
     }
 }

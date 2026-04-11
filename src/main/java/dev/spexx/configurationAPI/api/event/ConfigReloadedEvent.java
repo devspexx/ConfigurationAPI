@@ -13,7 +13,7 @@ import org.jetbrains.annotations.NotNull;
  *
  * @since 1.3.0
  */
-public class ConfigReloadEvent extends Event {
+public class ConfigReloadedEvent extends Event {
 
     private static final HandlerList HANDLERS = new HandlerList();
 
@@ -31,10 +31,10 @@ public class ConfigReloadEvent extends Event {
      * @param newChecksum the new checksum, or {@code null} if generation failed
      * @since 1.3.0
      */
-    public ConfigReloadEvent(@NotNull String configName,
-                             @NotNull FileConfiguration newConfig,
-                             String oldChecksum,
-                             String newChecksum) {
+    public ConfigReloadedEvent(@NotNull String configName,
+                               @NotNull FileConfiguration newConfig,
+                               String oldChecksum,
+                               String newChecksum) {
         this.configName = configName;
         this.newConfig = newConfig;
         this.oldChecksum = oldChecksum;
