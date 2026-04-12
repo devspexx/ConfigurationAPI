@@ -154,9 +154,15 @@ getConfigurationProvider().registerWithDefaults(
 ```java
 import dev.spexx.configurationAPI.api.config.yaml.YamlConfig;
 
+// Option 1 - by File
 YamlConfig config = getConfigurationProvider().get(
         new File(getDataFolder(), "config.yml")
 );
+
+// Option 2 - by path (String) relative or absolute
+
+YamlConfig config = getConfigurationProvider()
+        .getByPath("plugins/MyPlugin/config.yml);
 
 String value = config.get().getString("path.to.value");
 ```
